@@ -67,7 +67,7 @@ class SourceMysqlTest {
         ps.execute();
         System.out.println("prepared data");
         createSourceConnector();
-        Thread.sleep(5000);
+        Thread.sleep(30000);
         var result = helper.listConnectors();
         Assertions.assertEquals(result.size(), 1);
         // check the stream
