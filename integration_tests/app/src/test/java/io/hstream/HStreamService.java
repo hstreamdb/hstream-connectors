@@ -83,10 +83,10 @@ public class HStreamService {
                         "bash",
                         "-c",
                         " hstream-server"
-                                + " --host 127.0.0.1"
+                                + " --bind-address 127.0.0.1"
                                 + " --port 6570"
                                 + " --internal-port 6571"
-                                + " --address 127.0.0.1"
+                                + " --advertised-address 127.0.0.1"
                                 + " --server-id 1"
                                 + " --seed-nodes 127.0.0.1:6571"
                                 + " --metastore-uri zk://127.0.0.1:2181"
