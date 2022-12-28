@@ -21,17 +21,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
 
-      - name: publish local java-toolkit
-        working-directory: ./java-toolkit
-        run: ./gradlew publishToMavenLocal -PdisableSigning --info
-
       - name: build images
-        run: ./scripts/build_images.sh
+        run: make build_images
 
-      - name: test
+      - name: run test
         run: |
-          cd integration_tests
-          ./gradlew test --info
+          make pull_images
+          make test
 
       - uses: actions/upload-artifact@v2
         if: ${{ success() }} || ${{ failure() }}

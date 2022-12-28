@@ -1,6 +1,7 @@
 package io.hstream;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -20,11 +21,18 @@ public class HStreamService {
   GenericContainer<?> hstore;
   GenericContainer<?> server;
 
+  private final Integer hstoreAdminPort;
+  private final Integer hserverPort;
+  private final Integer hserverInternalPort;
+
   HStreamService() throws IOException {
     zk = makeZooKeeper();
     var dataDir = Files.createTempDirectory("hstream");
-    hstore = makeHStore(dataDir);
-    server = makeServer(dataDir);
+    hstoreAdminPort = getRandomOpenPort();
+    hserverPort = getRandomOpenPort();
+    hserverInternalPort = getRandomOpenPort();
+    hstore = makeHStore(dataDir, hstoreAdminPort);
+    server = makeServer(dataDir, hserverPort, hserverInternalPort, hstoreAdminPort);
   }
 
   void start() {
@@ -40,7 +48,9 @@ public class HStreamService {
   }
 
   public GenericContainer<?> makeZooKeeper() {
-    return new GenericContainer<>(DockerImageName.parse("zookeeper")).withNetworkMode("host");
+    return new GenericContainer<>(DockerImageName.parse("zookeeper"))
+        .withEnv("ZOO_ADMINSERVER_ENABLED", "false")
+        .withNetworkMode("host");
   }
 
   private DockerImageName getHStreamImageName() {
@@ -55,7 +65,8 @@ public class HStreamService {
     }
   }
 
-  public GenericContainer<?> makeHStore(Path dataDir) {
+  public GenericContainer<?> makeHStore(Path dataDir, Integer hstoreAdminPort) {
+    log.info("Start hstore with adminPort {}", hstoreAdminPort);
     return new GenericContainer<>(getHStreamImageName())
         .withNetworkMode("host")
         .withFileSystemBind(
@@ -68,12 +79,14 @@ public class HStreamService {
                 + "--use-tcp "
                 + "--tcp-host "
                 + "127.0.0.1 "
-                + "--user-admin-port 6440 "
-                + "--no-interactive")
+                + "--user-admin-port "
+                + hstoreAdminPort
+                + " --no-interactive")
         .waitingFor(Wait.forLogMessage(".*LogDevice Cluster running.*", 1));
   }
 
-  public GenericContainer<?> makeServer(Path dataDir) {
+  public GenericContainer<?> makeServer(
+      Path dataDir, Integer hserverPort, Integer hserverInternalPort, Integer hstoreAdminPort) {
     var latestImages = getLatestImages();
     var extraImages = getExtraImages();
     return new GenericContainer<>(getHStreamImageName())
@@ -86,14 +99,18 @@ public class HStreamService {
             "-c",
             " hstream-server"
                 + " --bind-address 127.0.0.1"
-                + " --port 6570"
-                + " --internal-port 6571"
+                + " --port "
+                + hserverPort
+                + " --internal-port "
+                + hserverInternalPort
                 + " --advertised-address 127.0.0.1"
                 + " --server-id 1"
-                + " --seed-nodes 127.0.0.1:6571"
+                + " --seed-nodes 127.0.0.1:"
+                + hserverInternalPort
                 + " --metastore-uri zk://127.0.0.1:2181"
                 + " --store-config /data/hstore/logdevice.conf"
-                + " --store-admin-port 6440"
+                + " --store-admin-port "
+                + hstoreAdminPort
                 + " --log-level debug"
                 + latestImages
                 + extraImages
@@ -124,7 +141,7 @@ public class HStreamService {
   }
 
   int getServerPort() {
-    return 6570;
+    return hserverPort;
   }
 
   void writeLog(TestInfo testInfo) throws Exception {
@@ -138,5 +155,18 @@ public class HStreamService {
     String fileName = dir + "/server.log";
     Files.createDirectories(Path.of(dir));
     Files.writeString(Path.of(fileName), server.getLogs());
+  }
+
+  private static Integer getRandomOpenPort() throws IOException {
+    ServerSocket socket = null;
+    try {
+      socket = new ServerSocket(0);
+      socket.setReuseAddress(true);
+      return socket.getLocalPort();
+    } finally {
+      if (socket != null) {
+        socket.close();
+      }
+    }
   }
 }
