@@ -5,31 +5,30 @@ package io.hstream;
 
 import io.hstream.external.Mysql;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 class SourceMysqlTest {
-    Mysql mysql;
-    HStreamHelper helper;
+  Mysql mysql;
+  HStreamHelper helper;
 
-    @BeforeEach
-    void setup(TestInfo testInfo) throws Exception {
-        // setup HStreamDB
-        helper = new HStreamHelper(testInfo);
-        // setup mysql
-        mysql = new Mysql();
-    }
+  @BeforeEach
+  void setup(TestInfo testInfo) throws Exception {
+    // setup HStreamDB
+    helper = new HStreamHelper(testInfo);
+    // setup mysql
+    mysql = new Mysql();
+  }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        mysql.close();
-        helper.close();
-    }
+  @AfterEach
+  void tearDown() throws Exception {
+    mysql.close();
+    helper.close();
+  }
 
-    @Test
-    void testFullSync() throws Exception {
-        Utils.testSourceFullSync(helper, mysql);
-    }
+  @Test
+  void testFullSync() throws Exception {
+    Utils.testSourceFullSync(helper, mysql);
+  }
 }

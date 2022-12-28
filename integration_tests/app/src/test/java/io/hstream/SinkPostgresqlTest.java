@@ -9,24 +9,24 @@ import org.junit.jupiter.api.TestInfo;
 
 @Slf4j
 public class SinkPostgresqlTest {
-    HStreamHelper helper;
-    Postgresql pg;
+  HStreamHelper helper;
+  Postgresql pg;
 
-    @BeforeEach
-    void setup(TestInfo testInfo) throws Exception {
-        helper = new HStreamHelper(testInfo);
-        pg = new Postgresql();
-        log.info("set up environment");
-    }
+  @BeforeEach
+  void setup(TestInfo testInfo) throws Exception {
+    helper = new HStreamHelper(testInfo);
+    pg = new Postgresql();
+    log.info("set up environment");
+  }
 
-    @Test
-    void testFullSync() throws Exception {
-        Utils.testSinkFullSync(helper, pg);
-    }
+  @Test
+  void testFullSync() throws Exception {
+    Utils.testSinkFullSync(helper, pg);
+  }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        pg.close();
-        helper.close();
-    }
+  @AfterEach
+  void tearDown() throws Exception {
+    pg.close();
+    helper.close();
+  }
 }

@@ -10,23 +10,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 class SourceSqlserverTest {
-    Sqlserver sqlserver;
-    HStreamHelper helper;
+  Sqlserver sqlserver;
+  HStreamHelper helper;
 
-    @BeforeEach
-    void setup(TestInfo testInfo) throws Exception {
-        helper = new HStreamHelper(testInfo);
-        sqlserver = new Sqlserver();
-    }
+  @BeforeEach
+  void setup(TestInfo testInfo) throws Exception {
+    helper = new HStreamHelper(testInfo);
+    sqlserver = new Sqlserver();
+  }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        sqlserver.close();
-        helper.close();
-    }
+  @AfterEach
+  void tearDown() throws Exception {
+    sqlserver.close();
+    helper.close();
+  }
 
-    @Test
-    void testFullSync() throws Exception {
-        Utils.testSourceFullSync(helper, sqlserver);
-    }
+  @Test
+  void testFullSync() throws Exception {
+    Utils.testSourceFullSync(helper, sqlserver);
+  }
 }

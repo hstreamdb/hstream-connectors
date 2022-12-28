@@ -9,23 +9,24 @@ import org.junit.jupiter.api.TestInfo;
 
 @Slf4j
 public class SinkMongodbTest {
-    HStreamHelper helper;
-    Mongodb mongodb;
+  HStreamHelper helper;
+  Mongodb mongodb;
 
-    @BeforeEach
-    void setup(TestInfo testInfo) throws Exception {
-        helper = new HStreamHelper(testInfo);
-        mongodb = new Mongodb();
-        log.info("set up environment");
-    }
+  @BeforeEach
+  void setup(TestInfo testInfo) throws Exception {
+    helper = new HStreamHelper(testInfo);
+    mongodb = new Mongodb();
+    log.info("set up environment");
+  }
 
-    @Test
-    void testFullSync() {
-        Utils.testSinkFullSync(helper, mongodb);
-    }
-    @AfterEach
-    void tearDown() throws Exception {
-        mongodb.close();
-        helper.close();
-    }
+  @Test
+  void testFullSync() {
+    Utils.testSinkFullSync(helper, mongodb);
+  }
+
+  @AfterEach
+  void tearDown() throws Exception {
+    mongodb.close();
+    helper.close();
+  }
 }
