@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sink-null",
+  "description": "the configuration specification of sink-null",
+  "type": "object",
+  "properties": {
+    "stream": {
+      "description": "source HStream stream name",
+      "type": "string"
+    }
+  },
+  "required": [ "stream" ]
+}
