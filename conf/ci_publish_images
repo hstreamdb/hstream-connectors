@@ -5,4 +5,4 @@ hstreamdb/source-mongodb
 hstreamdb/sink-mysql
 hstreamdb/sink-postgresql
 hstreamdb/sink-mongodb
-hstreamdb/sink-null
+hstreamdb/sink-blackhole

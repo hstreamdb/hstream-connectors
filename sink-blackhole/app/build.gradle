@@ -47,12 +47,12 @@ task buildImages(type: Exec) {
     if (imageVersion == null) {
         imageVersion = "latest"
     }
-    commandLine "docker", "build", "..", "-f", "../docker/Dockerfile", "-t", "hstreamdb/sink-null:${imageVersion}"
+    commandLine "docker", "build", "..", "-f", "../docker/Dockerfile", "-t", "hstreamdb/sink-blackhole:${imageVersion}"
 }
 
 application {
     // Define the main class for the application.
-    mainClass = 'sink.NullSinkTask'
+    mainClass = 'sink.BlackholeSinkTask'
 }
 
 tasks.named('test') {

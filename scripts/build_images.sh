@@ -12,6 +12,6 @@ cd ../sink-jdbc || exit
 cd ../sink-mongodb || exit
 ./gradlew buildImages
 
-# sink-null
-cd ../sink-null || exit
+# sink-blackhole
+cd ../sink-blackhole || exit
 ./gradlew buildImages

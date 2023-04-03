@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "sink-null",
-  "description": "the configuration specification of sink-null",
+  "title": "sink-blackhole",
+  "description": "the configuration specification of sink-blackhole",
   "type": "object",
   "properties": {
     "stream": {

@@ -10,7 +10,7 @@ import io.hstream.io.impl.SinkTaskContextImpl;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class NullSinkTask implements SinkTask {
+public class BlackholeSinkTask implements SinkTask {
     @Override
     public void run(HRecord cfg, SinkTaskContext ctx) {
         ctx.handle((stream, records) -> {
@@ -27,6 +27,6 @@ public class NullSinkTask implements SinkTask {
     public void stop() {}
 
     public static void main(String[] args) {
-        new TaskRunner().run(args, new NullSinkTask(), new SinkTaskContextImpl());
+        new TaskRunner().run(args, new BlackholeSinkTask(), new SinkTaskContextImpl());
     }
 }
