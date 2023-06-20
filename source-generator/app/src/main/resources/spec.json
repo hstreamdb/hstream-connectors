@@ -9,19 +9,12 @@
       "description": "result stream",
       "type": "string"
     },
-    "type": {
-      "title": "type",
-      "description": "generator type",
-      "type": "string",
-      "default": "json",
-      "enum": ["sequence", "json"]
-    },
     "schema": {
       "title": "schema",
       "type": "string",
-      "default": "",
+      "default": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"k1\": {\n      \"type\": \"integer\",\n      \"minimum\": 10,\n      \"maximum\": 20\n    },\n    \"v1\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"k1\", \"v1\"]\n}",
       "ui:type": "editor",
-      "description": "schema for generating random data"
+      "description": "json schema for generating random data"
     },
     "batchSize": {
       "title": "batchSize",
@@ -36,6 +29,6 @@
       "default": 5
     }
   },
-  "required": ["stream", "type", "batchSize", "period"],
-  "ui:order": ["stream", "type", "schema", "batchSize", "period"]
+  "required": ["stream", "batchSize", "period"],
+  "ui:order": ["stream", "schema", "batchSize", "period"]
 }

@@ -38,18 +38,19 @@ public class GeneratorSourceTask implements SourceTask {
         log.info("schema:{}", schema);
         assert batchSize > 0;
         assert period > 0;
-        var seq = 0;
-        var seqStr = kv.get("sequence").get();
-        if (seqStr != null && !seqStr.isEmpty()) {
-            seq = Integer.parseInt(seqStr);
+        var dataType = DataType.JSON;
+        if (cfg.contains("type") && cfg.getString("type").equalsIgnoreCase("sequence")) {
+            dataType = DataType.SEQUENCE;
         }
-        switch (DataType.valueOf(cfg.getString("type").toUpperCase())) {
-            case SEQUENCE:
-                generator = getSequenceGenerator(seq);
-                break;
-            case JSON:
-                generator = getJsonGeneratorFromSchema(schema);
-                break;
+        var seq = 0;
+        if (dataType.equals(DataType.SEQUENCE)) {
+            var seqStr = kv.get("sequence").get();
+            if (seqStr != null && !seqStr.isEmpty()) {
+                seq = Integer.parseInt(seqStr);
+            }
+            generator = getSequenceGenerator(seq);
+        } else {
+            generator = getJsonGeneratorFromSchema(schema);
         }
         while (true) {
             if (needStop) {
@@ -57,8 +58,10 @@ public class GeneratorSourceTask implements SourceTask {
             }
             Thread.sleep(period * 1000L);
             writeRecords(batchSize);
-            seq += batchSize;
-            kv.set("sequence", String.valueOf(seq));
+            if (dataType.equals(DataType.SEQUENCE)) {
+                seq += batchSize;
+                kv.set("sequence", String.valueOf(seq));
+            }
         }
     }
 
