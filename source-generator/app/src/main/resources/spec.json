@@ -20,13 +20,17 @@
       "title": "batchSize",
       "description": "batch size",
       "type": "integer",
-      "default": 1
+      "default": 1,
+      "minimum": 1,
+      "maximum": 10
     },
     "period": {
       "title": "period",
       "description": "write period",
       "type": "integer",
-      "default": 5
+      "default": 5,
+      "minimum": 1,
+      "maximum": 100
     }
   },
   "required": ["stream", "batchSize", "period"],
