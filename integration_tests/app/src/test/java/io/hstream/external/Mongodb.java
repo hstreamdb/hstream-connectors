@@ -8,6 +8,8 @@ import io.hstream.HArray;
 import io.hstream.HRecord;
 import io.hstream.Utils;
 import java.util.LinkedList;
+
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.testcontainers.containers.MongoDBContainer;
