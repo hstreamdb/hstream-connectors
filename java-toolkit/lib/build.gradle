@@ -139,5 +139,6 @@ tasks.named('test') {
 tasks {
     shadowJar {
         archiveClassifier.set("")
+        mergeServiceFiles()
     }
 }

@@ -16,7 +16,6 @@ public class SinkMongodbTest {
     log.info("set up environment");
   }
 
-  @Disabled
   @Test
   void testFullSync() {
     Utils.testSinkFullSync(helper, mongodb);
