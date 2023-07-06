@@ -76,7 +76,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                 offset = new StreamShardOffset(offsets.get(shard.getShardId()));
             }
             var reader = client.newStreamShardReader().streamName(stream).shardId(shard.getShardId())
-                    .shardOffset(offset)
+                    .from(offset)
                     .batchReceiver(records -> {
                         var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
                         synchronized (handler) {
