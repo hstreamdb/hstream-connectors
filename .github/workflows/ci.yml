@@ -22,7 +22,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: build images
-        run: make build_images
+        run: make build_images_for_ci
 
       - name: run test
         run: |

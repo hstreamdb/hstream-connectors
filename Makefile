@@ -17,6 +17,16 @@ build_images:
 	(cd source-generator && ./gradlew buildImages)
 	(cd sink-elasticsearch && ./gradlew buildImages)
 
+build_images_for_ci:
+	(cd java-toolkit && ./gradlew publishToMavenLocal -PdisableSigning --info  --refresh-dependencies)
+	(cd source-debezium && ./gradlew buildImages)
+	(cd sink-jdbc && ./gradlew buildImages)
+	(cd sink-mongodb && ./gradlew buildImages)
+	(cd sink-blackhole && ./gradlew buildImages)
+	(cd sink-las && ./gradlew buildImages)
+	(cd source-generator && ./gradlew buildImages)
+	(cd sink-elasticsearch && ./gradlew buildImages)
+
 pull_images:
 	docker pull hstreamdb/hstream
 	docker pull mcr.microsoft.com/mssql/server:2022-latest
