@@ -15,7 +15,8 @@
     },
     "ca": {
       "description": "trusted ca",
-      "type": "string"
+      "type": "string",
+      "ui:type": "editor"
     },
     "index": {
       "description": "elasticsearch index name",
