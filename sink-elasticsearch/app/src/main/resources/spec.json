@@ -13,11 +13,15 @@
       "type": "string",
       "examples": ["http://localhost:9200", "http://host1:9200,host2:9200"]
     },
+    "ca": {
+      "description": "trusted ca",
+      "type": "string"
+    },
     "index": {
       "description": "elasticsearch index name",
       "type": "string"
     }
   },
   "required": [ "stream", "url", "index" ],
-  "ui:order": [ "stream", "url", "index" ]
+  "ui:order": [ "stream", "url", "ca", "index" ]
 }

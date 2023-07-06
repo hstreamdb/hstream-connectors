@@ -1,49 +1,65 @@
 package sink.elasticsearch;
 
-import lombok.Builder;
-import lombok.Data;
+import io.hstream.HRecord;
+import lombok.Getter;
+import lombok.SneakyThrows;
 import org.apache.http.HttpHost;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Data
-@Builder
-public class ConnectionUrl {
+@Getter
+public class ConnectionConfig {
     String schema;
     List<Map.Entry<String, Integer>> hosts;
+    String caPath;
 
-    public List<HttpHost> toHttps() {
+    public ConnectionConfig(HRecord cfg) {
+        var url = cfg.getString("url");
+        initUrl(url);
+        if (schema.equalsIgnoreCase("https")) {
+            if (!cfg.contains("ca")) {
+                throw new RuntimeException("ca should not be null in https schema");
+            }
+            initCa(cfg.getString("ca"));
+        }
+    }
+
+    @SneakyThrows
+    public List<HttpHost> toHttpHosts() {
         return hosts.stream()
                 .map(host -> new HttpHost(host.getKey(), host.getValue(), schema))
                 .collect(Collectors.toList());
     }
 
-    public static ConnectionUrl fromUrlString(String url) {
+    void initUrl(String url) {
         String uriStr = url.strip();
         var schemaHosts = uriStr.split("://");
         if (schemaHosts.length != 2) {
             throw new IllegalArgumentException(
                     "incorrect serviceUrl: " + uriStr + " (correct example: http://host1:9200)");
         }
-        var schemaStr = schemaHosts[0];
-        var hosts = schemaHosts[1];
+        schema = schemaHosts[0];
         try {
-            return ConnectionUrl.builder()
-                    .schema(schemaStr)
-                    .hosts(parseHosts(hosts))
-                    .build();
+            hosts = parseHosts(schemaHosts[1]);
         } catch (Exception e) {
             throw new IllegalArgumentException(
                     "incorrect serviceUrl: " + uriStr + " (correct example: http://host1:9200)");
         }
     }
 
+    @SneakyThrows
+    public void initCa(String ca) {
+        caPath = Files.createTempFile("es_ca_", ".crt").toString();
+        Files.writeString(Path.of(caPath), ca);
+    }
+
     static List<Map.Entry<String, Integer>> parseHosts(String hosts) {
         return Arrays.stream(hosts.split(","))
-                .map(ConnectionUrl::parseHost)
+                .map(ConnectionConfig::parseHost)
                 .collect(Collectors.toList());
     }
 

@@ -1,17 +1,10 @@
 package sink.elasticsearch;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.util.BinaryData;
-import co.elastic.clients.util.ContentType;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.hstream.HRecord;
 import io.hstream.io.*;
 import io.hstream.io.impl.SinkTaskContextImpl;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
 
 @Slf4j
 public class ElasticsearchSinkTask implements SinkTask {
@@ -19,7 +12,7 @@ public class ElasticsearchSinkTask implements SinkTask {
 
     @Override
     public void run(HRecord cfg, SinkTaskContext ctx) {
-        esClient = new EsClient(cfg.getString("url"));
+        esClient = new EsClient(cfg);
         var index = cfg.getString("index");
         ctx.handle((stream, records) -> {
             esClient.writeRecords(index, records);
