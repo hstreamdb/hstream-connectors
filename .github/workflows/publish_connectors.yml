@@ -23,7 +23,7 @@ jobs:
 
       - name: publish local java-toolkit
         working-directory: ./java-toolkit
-        run: ./gradlew publishToMavenLocal -PdisableSigning --info
+        run: ./gradlew publishToMavenLocal -PdisableSigning --info --refresh-dependencies
 
       - name: build images
         run: make build_images
