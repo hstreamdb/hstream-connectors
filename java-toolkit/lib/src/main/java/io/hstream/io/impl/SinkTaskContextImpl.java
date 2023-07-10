@@ -74,6 +74,9 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         var offsets = sinkOffsetsManager.getStoredOffsets();
         for (var shard : shards) {
             var offset = new StreamShardOffset(StreamShardOffset.SpecialOffset.EARLIEST);
+            if (cCfg.contains("task.reader.fromOffset")) {
+                offset = new StreamShardOffset(StreamShardOffset.SpecialOffset.valueOf(cCfg.getString("task.reader.fromOffset")));
+            }
             if (offsets.containsKey(shard.getShardId())) {
                 offset = new StreamShardOffset(offsets.get(shard.getShardId()));
             }
