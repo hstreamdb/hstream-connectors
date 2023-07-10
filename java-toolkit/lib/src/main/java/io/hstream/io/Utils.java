@@ -10,13 +10,16 @@ import io.hstream.HRecord;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class Utils {
-    static ObjectMapper mapper = new ObjectMapper();
+    static public ObjectMapper mapper = new ObjectMapper();
     public static void runWithTimeout(int timeout, Runnable runnable) {
         var thread = new Thread(runnable);
         thread.start();
@@ -62,5 +65,14 @@ public class Utils {
 
     static public Map<String, Object> hRecordToMap(HRecord hRecord) {
         return pbStructToMap(hRecord.getDelegate());
+    }
+
+    public static String displayBytes(byte[] data) {
+        try {
+            var utf8Decoder = StandardCharsets.UTF_8.newDecoder();
+            return utf8Decoder.decode(ByteBuffer.wrap(data)).toString();
+        } catch (CharacterCodingException e) {
+            return Base64.getEncoder().encodeToString(data);
+        }
     }
 }

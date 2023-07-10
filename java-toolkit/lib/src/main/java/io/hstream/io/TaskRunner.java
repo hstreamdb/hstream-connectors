@@ -11,6 +11,7 @@ import com.networknt.schema.SpecVersion;
 import io.hstream.HRecord;
 import io.hstream.io.impl.ChannelKvStore;
 import io.hstream.io.impl.StdioChannel;
+import io.hstream.io.impl.spec.ExtendedSpec;
 import io.hstream.io.internal.Channel;
 
 import java.awt.*;
@@ -93,7 +94,7 @@ public class TaskRunner {
         }
         switch (jc.getParsedCommand()) {
             case "spec":
-                System.out.println(task.spec());
+                System.out.println(ExtendedSpec.merge(task.spec()));
                 System.out.flush();
                 break;
             case "check":

@@ -61,7 +61,7 @@ task buildImages(type: Exec) {
 
 application {
     // Define the main class for the application.
-    mainClass = 'sink.elasticsearch.ElasticsearchSink'
+    mainClass = 'sink.elasticsearch.ElasticsearchSinkTask'
 }
 
 tasks.named('test') {

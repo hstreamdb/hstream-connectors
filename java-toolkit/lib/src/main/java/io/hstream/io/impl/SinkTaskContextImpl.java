@@ -29,6 +29,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     CountDownLatch latch = new CountDownLatch(1);
     List<StreamShardReader> readers = new LinkedList<>();
     SinkOffsetsManager sinkOffsetsManager;
+    ErrorHandler errorHandler;
 
     @Override
     public KvStore getKvStore() {
@@ -60,9 +61,10 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     @Override
     public void handle(BiConsumer<String, List<SinkRecord>> handler) {
         var hsCfg = cfg.getHRecord("hstream");
-        client = HStreamClient.builder().serviceUrl(hsCfg.getString("serviceUrl")).build();
-        var taskId = cfg.getString("task");
         var cCfg = cfg.getHRecord("connector");
+        client = HStreamClient.builder().serviceUrl(hsCfg.getString("serviceUrl")).build();
+        errorHandler = new ErrorHandler(client, cCfg);
+//        var taskId = cfg.getString("task");
         var stream = cCfg.getString("stream");
         var shards = client.listShards(stream);
         if (shards.size() > 1) {
@@ -80,7 +82,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                     .batchReceiver(records -> {
                         var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
                         synchronized (handler) {
-                            handleWithRetry(handler, stream, sinkRecords);
+                            handleWithRetry(handler, stream, SinkRecordBatch.builder().shardId(shard.getShardId()).sinkRecords(sinkRecords).build());
                             sinkOffsetsManager.update(shard.getShardId(), records.get(records.size() - 1).getRecordId());
                             updateMetrics(sinkRecords);
                         }
@@ -94,25 +96,35 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     }
 
     @SneakyThrows
-    void handleWithRetry(BiConsumer<String, List<SinkRecord>> handler, String stream, List<SinkRecord> sinkRecords) {
-        int count = 0;
-        int maxRetries = 3;
+    void handleWithRetry(BiConsumer<String, List<SinkRecord>> handler, String stream, SinkRecordBatch batch) {
         int retryInterval = 5;
-        while (count < maxRetries) {
+        int count = 0;
+        while (true) {
+            count++;
             try {
-                handler.accept(stream, sinkRecords);
+                handler.accept(stream, batch.getSinkRecords());
                 return;
+            } catch (ConnectorExceptions.BaseException e){
+                log.warn("delivery record failed:{}", e.getMessage());
+                var res = errorHandler.handleError(batch.getShardId(), new ConnectorExceptions.UnknownError(e.getMessage()));
+                switch (res.action) {
+                    case RETRY:
+                        continue;
+                    case SKIP:
+                        return;
+                }
+                break;
             } catch (Throwable e) {
+                errorHandler.handleError(batch.getShardId(), new ConnectorExceptions.UnknownError(e.getMessage()));
                 log.warn("deliver record failed:{}", e.getMessage());
                 e.printStackTrace();
-                count++;
                 Thread.sleep(retryInterval * count * 1000L);
             }
         }
         // failed
         latch.countDown();
         log.info("connector failed");
-        throw new RuntimeException("connector failed, retried:" + maxRetries);
+        throw new RuntimeException("connector failed");
     }
 
     void updateMetrics(List<SinkRecord> records) {
