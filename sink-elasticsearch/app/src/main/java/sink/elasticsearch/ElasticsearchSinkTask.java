@@ -14,8 +14,8 @@ public class ElasticsearchSinkTask implements SinkTask {
     public void run(HRecord cfg, SinkTaskContext ctx) {
         esClient = new EsClient(cfg);
         var index = cfg.getString("index");
-        ctx.handle((stream, records) -> {
-            esClient.writeRecords(index, records);
+        ctx.handleParallel((batch) -> {
+            esClient.writeRecords(index, batch.getSinkRecords());
         });
     }
 

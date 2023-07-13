@@ -8,6 +8,7 @@ import java.util.List;
 @Getter
 @Builder
 public class SinkRecordBatch {
+    String stream;
     long shardId;
     List<SinkRecord> sinkRecords;
 }

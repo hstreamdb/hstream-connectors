@@ -33,7 +33,9 @@ public class LasSinkTask implements SinkTask {
         this.cfg = cfg;
         init();
         // config
-        ctx.handle((stream, records) -> handleWithException(records.stream().map(LasRecord::fromSinkRecord).collect(Collectors.toList())));
+        ctx.handle((batch) -> handleWithException(batch.getSinkRecords().stream()
+                .map(LasRecord::fromSinkRecord)
+                .collect(Collectors.toList())));
     }
 
     @SneakyThrows

@@ -1,31 +1,37 @@
 package io.hstream.io.test;
 
 import io.hstream.HRecord;
-import io.hstream.io.KvStore;
-import io.hstream.io.ReportMessage;
-import io.hstream.io.SinkRecord;
-import io.hstream.io.SinkTaskContext;
+import io.hstream.io.*;
 import lombok.SneakyThrows;
 
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class FakeSinkTaskContext implements SinkTaskContext {
-    final LinkedBlockingQueue<List<SinkRecord>> data = new LinkedBlockingQueue<>(10);
+    final LinkedBlockingQueue<SinkRecordBatch> data = new LinkedBlockingQueue<>(10);
     KvStore kvStore;
 
     @SneakyThrows
     @Override
-    public void handle(BiConsumer<String, List<SinkRecord>> handler) {
+    public void handle(Consumer<SinkRecordBatch> handler) {
         while (true) {
-            handler.accept("stream01", data.take());
+            handler.accept(data.take());
         }
     }
 
     @SneakyThrows
+    @Override
+    public void handleParallel(Consumer<SinkRecordBatch> handler) {
+        handle(handler);
+    }
+
+    @SneakyThrows
     public void appendRecords(List<SinkRecord> records) {
-        data.put(records);
+        String stream = "stream01";
+        long shardId = 0;
+        data.put(SinkRecordBatch.builder().stream(stream).shardId(shardId).sinkRecords(records).build());
     }
 
     @Override

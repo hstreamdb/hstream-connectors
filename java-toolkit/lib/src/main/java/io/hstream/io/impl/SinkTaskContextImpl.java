@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import lombok.SneakyThrows;
@@ -60,9 +61,18 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         sinkOffsetsManager = new SinkOffsetsManagerImpl(kv, "SinkOffsetsManagerImpl");
     }
 
-    @SneakyThrows
     @Override
-    public void handle(BiConsumer<String, List<SinkRecord>> handler) {
+    public void handle(Consumer<SinkRecordBatch> handler) {
+        handleInternal(handler, false);
+    }
+
+    @Override
+    public void handleParallel(Consumer<SinkRecordBatch> handler) {
+        handleInternal(handler, true);
+    }
+
+    @SneakyThrows
+    public void handleInternal(Consumer<SinkRecordBatch> handler, boolean parallel) {
         var hsCfg = cfg.getHRecord("hstream");
         var cCfg = cfg.getHRecord("connector");
         client = HStreamClient.builder().serviceUrl(hsCfg.getString("serviceUrl")).build();
@@ -85,16 +95,18 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             var reader = client.newStreamShardReader().streamName(stream).shardId(shard.getShardId())
                     .from(offset)
                     .batchReceiver(records -> {
-                        try {
-                            var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
+                        var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
+                        var batch = SinkRecordBatch.builder()
+                                .stream(stream)
+                                .shardId(shard.getShardId())
+                                .sinkRecords(sinkRecords)
+                                .build();
+                        if (parallel) {
+                            handleWithRetry(handler, batch);
+                        } else {
                             synchronized (handler) {
-                                handleWithRetry(handler, stream, SinkRecordBatch.builder().shardId(shard.getShardId()).sinkRecords(sinkRecords).build());
-                                sinkOffsetsManager.update(shard.getShardId(), records.get(records.size() - 1).getRecordId());
-                                updateMetrics(sinkRecords);
+                                handleWithRetry(handler, batch);
                             }
-                        } catch (Throwable e) {
-                            log.warn("write record failed:{}", e.getMessage());
-                            throw e;
                         }
                     }).build();
             reader.startAsync().awaitRunning();
@@ -114,13 +126,15 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     }
 
     @SneakyThrows
-    void handleWithRetry(BiConsumer<String, List<SinkRecord>> handler, String stream, SinkRecordBatch batch) {
+    void handleWithRetry(Consumer<SinkRecordBatch> handler, SinkRecordBatch batch) {
         int retryInterval = 5;
         int count = 0;
         while (true) {
             count++;
             try {
-                handler.accept(stream, batch.getSinkRecords());
+                handler.accept(batch);
+                sinkOffsetsManager.update(batch.getShardId(), batch.getSinkRecords().get(batch.getSinkRecords().size() - 1).getRecordId());
+                updateMetrics(batch.getSinkRecords());
                 errorHandler.resetRetry(batch.getShardId());
                 return;
             } catch (ConnectorExceptions.BaseException e){

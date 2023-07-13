@@ -38,35 +38,40 @@ public class EsClient {
     }
 
     @SneakyThrows
-    ElasticsearchClient getConnection() {
+    synchronized ElasticsearchClient getConnection() {
         if (esClient == null) {
-            RestClient restClient;
-            if (connectionConfig.getScheme().equalsIgnoreCase("https")) {
-                Path caCertificatePath = Paths.get(connectionConfig.getCaPath());
-                CertificateFactory factory =
-                        CertificateFactory.getInstance("X.509");
-                Certificate trustedCa;
-                try (InputStream is = Files.newInputStream(caCertificatePath)) {
-                    trustedCa = factory.generateCertificate(is);
-                }
-                KeyStore trustStore = KeyStore.getInstance("pkcs12");
-                trustStore.load(null, null);
-                trustStore.setCertificateEntry("ca", trustedCa);
-                SSLContextBuilder sslContextBuilder = SSLContexts.custom()
-                        .loadTrustMaterial(trustStore, null);
-                final SSLContext sslContext = sslContextBuilder.build();
-                restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0]))
-                        .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLContext(sslContext))
-                        .build();
-            } else {
-                restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0])).build();
-            }
-
-            ElasticsearchTransport transport = new RestClientTransport(
-                    restClient, new JacksonJsonpMapper());
-            esClient = new ElasticsearchClient(transport);
+            esClient = createNewConnection();
         }
         return esClient;
+    }
+
+    @SneakyThrows
+    ElasticsearchClient createNewConnection() {
+        RestClient restClient;
+        if (connectionConfig.getScheme().equalsIgnoreCase("https")) {
+            Path caCertificatePath = Paths.get(connectionConfig.getCaPath());
+            CertificateFactory factory =
+                    CertificateFactory.getInstance("X.509");
+            Certificate trustedCa;
+            try (InputStream is = Files.newInputStream(caCertificatePath)) {
+                trustedCa = factory.generateCertificate(is);
+            }
+            KeyStore trustStore = KeyStore.getInstance("pkcs12");
+            trustStore.load(null, null);
+            trustStore.setCertificateEntry("ca", trustedCa);
+            SSLContextBuilder sslContextBuilder = SSLContexts.custom()
+                    .loadTrustMaterial(trustStore, null);
+            final SSLContext sslContext = sslContextBuilder.build();
+            restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0]))
+                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLContext(sslContext))
+                    .build();
+        } else {
+            restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0])).build();
+        }
+
+        ElasticsearchTransport transport = new RestClientTransport(
+                restClient, new JacksonJsonpMapper());
+        return new ElasticsearchClient(transport);
     }
 
     void reset() {

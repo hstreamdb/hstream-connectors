@@ -25,8 +25,8 @@ abstract public class JdbcSinkTask implements SinkTask {
     @Override
     public void run(HRecord cfg, SinkTaskContext ctx) {
         init(cfg);
-        ctx.handle((stream, records) -> {
-            var jdbcRecords = records.stream()
+        ctx.handle((batch) -> {
+            var jdbcRecords = batch.getSinkRecords().stream()
                     .map(Utils::jdbcRecordFromSinkRecord)
                     .collect(Collectors.toList());
             handleRecordsWithException(jdbcRecords);

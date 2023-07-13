@@ -39,9 +39,9 @@ public class MongodbSinkTask implements SinkTask {
         client = MongoClients.create(connStr);
         var db = client.getDatabase(dbStr);
         collection = db.getCollection(collectionStr);
-        ctx.handle((stream, records) -> {
-            var result = collection.bulkWrite(records.stream().map(this::mapRecord).collect(Collectors.toList()));
-            log.debug("bulkWrite result:{} from steram:{}", result, stream);
+        ctx.handle((batch) -> {
+            var result = collection.bulkWrite(batch.getSinkRecords().stream().map(this::mapRecord).collect(Collectors.toList()));
+            log.debug("bulkWrite result:{} from steram:{}", result, batch.getStream());
         });
     }
 

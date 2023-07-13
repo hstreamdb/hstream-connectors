@@ -13,8 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 public class BlackholeSinkTask implements SinkTask {
     @Override
     public void run(HRecord cfg, SinkTaskContext ctx) {
-        ctx.handle((stream, records) -> {
-            log.debug("bulkWrite records:{} from stream:{}", records, stream);
+        ctx.handle((batch) -> {
+            log.debug("bulkWrite records:{} from stream:{}", batch.getSinkRecords(), batch.getStream());
         });
     }
 
