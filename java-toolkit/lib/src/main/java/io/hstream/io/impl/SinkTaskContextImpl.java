@@ -2,20 +2,18 @@ package io.hstream.io.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.Service;
 import io.hstream.*;
 import io.hstream.io.*;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.UUID;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import io.hstream.io.impl.spec.ReaderSpec;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
@@ -31,7 +29,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     AtomicInteger deliveredRecords = new AtomicInteger(0);
     AtomicInteger deliveredBytes = new AtomicInteger(0);
     CountDownLatch latch = new CountDownLatch(1);
-    List<StreamShardReader> readers = new LinkedList<>();
+    List<Reader> readers = new LinkedList<>();
     SinkOffsetsManager sinkOffsetsManager;
     ErrorHandler errorHandler;
 
@@ -92,9 +90,17 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             } else {
                 offset = getOffsetFromConfig(cCfg);
             }
-            var reader = client.newStreamShardReader().streamName(stream).shardId(shard.getShardId())
-                    .from(offset)
-                    .batchReceiver(records -> {
+            var reader = client.newReader()
+                    .streamName(stream)
+                    .readerId("io_reader_" + UUID.randomUUID().toString())
+                    .shardId(shard.getShardId())
+                    .shardOffset(offset)
+                    .requestTimeoutMs(1000)
+                    .build();
+            new Thread(() -> {
+                while (true) {
+                    var records = reader.read(1).join();
+                    if (records.size() > 0) {
                         var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
                         var batch = SinkRecordBatch.builder()
                                 .stream(stream)
@@ -108,8 +114,9 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                                 handleWithRetry(handler, batch);
                             }
                         }
-                    }).build();
-            reader.startAsync().awaitRunning();
+                    }
+                }
+            }).start();
             readers.add(reader);
         }
         latch.await();
@@ -210,7 +217,9 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     @Override
     public void close() {
         latch.countDown();
-        readers.forEach(Service::stopAsync);
+        for (var r : readers) {
+            r.close();
+        }
         sinkOffsetsManager.close();
         client.close();
     }
