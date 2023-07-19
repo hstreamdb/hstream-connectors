@@ -38,7 +38,7 @@ public class EsClient {
     }
 
     @SneakyThrows
-    synchronized ElasticsearchClient getConnection() {
+    ElasticsearchClient getConnection() {
         synchronized (connectionConfig) {
             if (esClient == null) {
                 esClient = createNewConnection();

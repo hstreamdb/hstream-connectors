@@ -10,7 +10,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -26,8 +26,8 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     HRecord cfg;
     HStreamClient client;
     KvStore kv;
-    AtomicInteger deliveredRecords = new AtomicInteger(0);
-    AtomicInteger deliveredBytes = new AtomicInteger(0);
+    AtomicLong deliveredRecords = new AtomicLong(0);
+    AtomicLong deliveredBytes = new AtomicLong(0);
     CountDownLatch latch = new CountDownLatch(1);
     List<Reader> readers = new LinkedList<>();
     SinkOffsetsManager sinkOffsetsManager;
@@ -83,7 +83,17 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         }
         latch = new CountDownLatch(1);
         var offsets = sinkOffsetsManager.getStoredOffsets();
-        for (var shard : shards) {
+        var timeFlushExecutor = new ScheduledThreadPoolExecutor(4);
+        // inner handler for BufferedSender
+        Consumer<SinkRecordBatch> innerHandler = batch -> {
+            if (parallel) {
+                handleWithRetry(handler, batch);
+            } else {
+                synchronized (handler) {
+                    handleWithRetry(handler, batch);
+                }
+            }
+        }; for (var shard : shards) {
             StreamShardOffset offset;
             if (offsets.containsKey(shard.getShardId())) {
                 offset = new StreamShardOffset(offsets.get(shard.getShardId()));
@@ -92,28 +102,23 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             }
             var reader = client.newReader()
                     .streamName(stream)
-                    .readerId("io_reader_" + UUID.randomUUID().toString())
+                    .readerId("io_reader_" + UUID.randomUUID())
                     .shardId(shard.getShardId())
                     .shardOffset(offset)
-                    .requestTimeoutMs(1000)
+                    .timeoutMs(1000)
                     .build();
             new Thread(() -> {
+                BufferedSender sender = new BufferedSender(stream, shard.getShardId(), cCfg, timeFlushExecutor, innerHandler);
                 while (true) {
                     var records = reader.read(1).join();
                     if (records.size() > 0) {
                         var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
-                        var batch = SinkRecordBatch.builder()
-                                .stream(stream)
-                                .shardId(shard.getShardId())
-                                .sinkRecords(sinkRecords)
-                                .build();
-                        if (parallel) {
-                            handleWithRetry(handler, batch);
-                        } else {
-                            synchronized (handler) {
-                                handleWithRetry(handler, batch);
-                            }
-                        }
+//                        var batch = SinkRecordBatch.builder()
+//                                .stream(stream)
+//                                .shardId(shard.getShardId())
+//                                .sinkRecords(sinkRecords)
+//                                .build();
+                        sender.put(sinkRecords);
                     }
                 }
             }).start();

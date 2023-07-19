@@ -11,7 +11,7 @@ import java.util.List;
 @Jacksonized
 @Builder
 public class ReportMessage {
-    int deliveredRecords;
-    int deliveredBytes;
+    long deliveredRecords;
+    long deliveredBytes;
     List<JsonNode> offsets;
 }

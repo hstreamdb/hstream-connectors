@@ -11,14 +11,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SourceTaskContextImpl implements SourceTaskContext {
     HStreamClient client;
     Map<String, BufferedProducer> producers = new HashMap<>();
     KvStore kvStore;
-    AtomicInteger deliveredRecords = new AtomicInteger(0);
-    AtomicInteger deliveredBytes = new AtomicInteger(0);
+    AtomicLong deliveredRecords = new AtomicLong(0);
+    AtomicLong deliveredBytes = new AtomicLong(0);
 
     @Override
     public void init(HRecord cfg, KvStore kv) {
