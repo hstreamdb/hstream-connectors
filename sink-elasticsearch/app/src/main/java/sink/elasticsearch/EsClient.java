@@ -109,12 +109,11 @@ public class EsClient {
         }
         if (result != null && result.errors()) {
             log.warn("bulk response error");
-            var reasons = result.items().stream()
+            var reason = result.items().stream()
                     .filter(i -> i.error() != null)
                     .map(i -> i.error().reason())
-                    .collect(Collectors.toList());
-            var reason = Utils.mapper.writeValueAsString(reasons);
-            throw new ConnectorExceptions.InvalidBatchError(batch, reason);
+                    .findFirst();
+            throw new ConnectorExceptions.InvalidBatchError(batch, Utils.mapper.writeValueAsString(reason));
         }
     }
 

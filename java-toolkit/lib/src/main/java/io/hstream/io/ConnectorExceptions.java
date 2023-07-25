@@ -1,7 +1,6 @@
 package io.hstream.io;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ser.Serializers;
 
 public class ConnectorExceptions {
     static ObjectMapper mapper = new ObjectMapper();
@@ -96,17 +95,24 @@ public class ConnectorExceptions {
     }
 
     public static class InvalidBatchError extends SinkException {
-        SinkRecordBatch batch;
+        String beginRecordId;
+        String tailRecordId;
 
         public InvalidBatchError(SinkRecordBatch batch, String reason) {
             super(reason);
-            this.batch = batch;
+            var records = batch.getSinkRecords();
+            var size = records.size();
+            if (size > 0) {
+                beginRecordId = records.get(0).recordId;
+                tailRecordId = records.get(size - 1).recordId;
+            }
         }
 
         @Override public String errorRecord() {
-            return mapper.createObjectNode() .put("type", "InvalidSinkRecord")
+            return mapper.createObjectNode() .put("type", "InvalidBatchSinkRecord")
                     .put("reason", reason)
-                    .set("batch", mapper.valueToTree(batch))
+                    .put("beginRecordId", reason)
+                    .put("tailRecordId", reason)
                     .toString();
         }
 

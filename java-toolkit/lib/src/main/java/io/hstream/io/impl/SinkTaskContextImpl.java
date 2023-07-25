@@ -31,7 +31,6 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     CountDownLatch latch = new CountDownLatch(1);
     List<Reader> readers = new LinkedList<>();
     SinkOffsetsManager sinkOffsetsManager;
-    ErrorHandler errorHandler;
     SinkSkipStrategy sinkSkipStrategy;
     SinkRetryStrategy retryStrategy;
 
@@ -79,7 +78,6 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         var errorRecorder = new ErrorRecorder(client, cCfg);
         retryStrategy = new SinkRetryStrategy(cCfg, errorRecorder);
         sinkSkipStrategy = new SinkSkipStrategyImpl(cCfg, errorRecorder);
-        errorHandler = new ErrorHandler(client, cCfg);
 //        var taskId = cfg.getString("task");
         var stream = cCfg.getString("stream");
         var shards = client.listShards(stream);
