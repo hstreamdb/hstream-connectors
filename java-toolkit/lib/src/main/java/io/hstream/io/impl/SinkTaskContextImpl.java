@@ -103,12 +103,16 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             } else {
                 offset = getOffsetFromConfig(cCfg);
             }
+            var readerTimeout = 1000;
+            if (cCfg.contains(READER_TIMEOUT)) {
+                readerTimeout = cCfg.getInt(READER_TIMEOUT);
+            }
             var reader = client.newReader()
                     .streamName(stream)
                     .readerId("io_reader_" + UUID.randomUUID())
                     .shardId(shard.getShardId())
                     .shardOffset(offset)
-                    .timeoutMs(0)
+                    .timeoutMs(readerTimeout)
                     .build();
             new Thread(() -> {
                 BufferedSender sender = new BufferedSender(stream, shard.getShardId(), cCfg, timeFlushExecutor, innerHandler);
