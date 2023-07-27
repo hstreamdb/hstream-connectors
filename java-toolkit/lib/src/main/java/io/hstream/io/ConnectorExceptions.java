@@ -67,7 +67,7 @@ public class ConnectorExceptions {
 
         @Override
         public String getMessage() {
-            return errorRecord();
+            return reason;
         }
     }
 
@@ -97,28 +97,30 @@ public class ConnectorExceptions {
     public static class InvalidBatchError extends SinkException {
         String beginRecordId;
         String tailRecordId;
+        int count;
 
         public InvalidBatchError(SinkRecordBatch batch, String reason) {
             super(reason);
             var records = batch.getSinkRecords();
-            var size = records.size();
-            if (size > 0) {
+            count = records.size();
+            if (count > 0) {
                 beginRecordId = records.get(0).recordId;
-                tailRecordId = records.get(size - 1).recordId;
+                tailRecordId = records.get(count - 1).recordId;
             }
         }
 
         @Override public String errorRecord() {
             return mapper.createObjectNode() .put("type", "InvalidBatchSinkRecord")
                     .put("reason", reason)
-                    .put("beginRecordId", reason)
-                    .put("tailRecordId", reason)
+                    .put("beginRecordId", beginRecordId)
+                    .put("tailRecordId", tailRecordId)
+                    .put("count", count)
                     .toString();
         }
 
         @Override
         public boolean shouldRetry() {
-            return false;
+            return true;
         }
     }
 }

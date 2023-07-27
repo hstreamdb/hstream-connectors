@@ -76,7 +76,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         var cCfg = cfg.getHRecord("connector");
         client = HStreamClient.builder().serviceUrl(hsCfg.getString("serviceUrl")).build();
         var errorRecorder = new ErrorRecorder(client, cCfg);
-        retryStrategy = new SinkRetryStrategy(cCfg, errorRecorder);
+        retryStrategy = new SinkRetryStrategy(cCfg);
         sinkSkipStrategy = new SinkSkipStrategyImpl(cCfg, errorRecorder);
 //        var taskId = cfg.getString("task");
         var stream = cCfg.getString("stream");
@@ -96,23 +96,23 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                     handleWithRetry(handler, batch);
                 }
             }
-        }; for (var shard : shards) {
+            sinkOffsetsManager.update(batch.getShardId(), batch.getSinkRecords().get(batch.getSinkRecords().size() - 1).getRecordId());
+            updateMetrics(batch.getSinkRecords());
+            retryStrategy.resetRetry(batch.getShardId());
+        };
+        for (var shard : shards) {
             StreamShardOffset offset;
             if (offsets.containsKey(shard.getShardId())) {
                 offset = new StreamShardOffset(offsets.get(shard.getShardId()));
             } else {
                 offset = getOffsetFromConfig(cCfg);
             }
-            var readerTimeout = 1000;
-            if (cCfg.contains(READER_TIMEOUT)) {
-                readerTimeout = cCfg.getInt(READER_TIMEOUT);
-            }
             var reader = client.newReader()
                     .streamName(stream)
                     .readerId("io_reader_" + UUID.randomUUID())
                     .shardId(shard.getShardId())
                     .shardOffset(offset)
-                    .timeoutMs(readerTimeout)
+                    .timeoutMs(1000)
                     .build();
             new Thread(() -> {
                 BufferedSender sender = new BufferedSender(stream, shard.getShardId(), cCfg, timeFlushExecutor, innerHandler);
@@ -160,9 +160,6 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             count++;
             try {
                 handler.accept(batch);
-                sinkOffsetsManager.update(batch.getShardId(), batch.getSinkRecords().get(batch.getSinkRecords().size() - 1).getRecordId());
-                updateMetrics(batch.getSinkRecords());
-                retryStrategy.resetRetry(batch.getShardId());
                 return;
             } catch (ConnectorExceptions.FailFastError e){
                 log.warn("fail fast error:{}", e.getMessage());
@@ -170,7 +167,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             } catch (Throwable e) {
                 log.warn("delivery record failed:{}, tried:{}", e.getMessage(), count);
                 if (!retryStrategy.showRetry(batch.getShardId(), e)) {
-                    if (sinkSkipStrategy.trySkipBatch(batch, "")) {
+                    if (sinkSkipStrategy.trySkipBatch(batch, e.getMessage())) {
                         return;
                     } else {
                         fail();

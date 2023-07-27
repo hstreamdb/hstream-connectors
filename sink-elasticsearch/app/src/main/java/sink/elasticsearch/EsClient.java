@@ -30,7 +30,6 @@ import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class EsClient {
@@ -109,11 +108,11 @@ public class EsClient {
         }
         if (result != null && result.errors()) {
             log.warn("bulk response error");
-            var reason = result.items().stream()
-                    .filter(i -> i.error() != null)
-                    .map(i -> i.error().reason())
-                    .findFirst();
-            throw new ConnectorExceptions.InvalidBatchError(batch, Utils.mapper.writeValueAsString(reason));
+            for (var error : result.items()) {
+                log.warn("bulk error: {}", error);
+            }
+            var reason = result.items().get(0).toString();
+            throw new ConnectorExceptions.InvalidBatchError(batch, reason);
         }
     }
 

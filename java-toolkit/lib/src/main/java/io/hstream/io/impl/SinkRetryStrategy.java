@@ -13,10 +13,8 @@ public class SinkRetryStrategy {
     // retry
     int maxRetries = 3;
     ConcurrentHashMap<Long, Integer> retried = new ConcurrentHashMap<>();
-    ErrorRecorder errorRecorder;
 
-    public SinkRetryStrategy(HRecord cfg, ErrorRecorder errorRecorder) {
-        this.errorRecorder = errorRecorder;
+    public SinkRetryStrategy(HRecord cfg) {
         // max retries
         if (cfg.contains(MAX_RETRIES)) {
             maxRetries = cfg.getInt(MAX_RETRIES);

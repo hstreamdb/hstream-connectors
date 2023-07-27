@@ -42,29 +42,29 @@ public class SinkSkipStrategyImpl implements SinkSkipStrategy {
 
     @Override
     public boolean trySkip(SinkRecord record, String reason) {
-        log.warn("handle skip record:{}", reason);
-        // record error
-        errorRecorder.recordError(new ConnectorExceptions.InvalidSinkRecordException(record, reason));
-
-        // skippable
-        if (skipCount < 0) {
-            return true;
+        log.warn("handle skip batch:{}", reason);
+        var result = showSkip(1);
+        if (result) {
+            errorRecorder.recordError(new ConnectorExceptions.InvalidSinkRecordException(record, reason));
         }
-        skipped.incrementAndGet();
-        return skipCount >= skipped.get();
+        return result;
     }
 
     @Override
     public boolean trySkipBatch(SinkRecordBatch batch, String reason) {
         log.warn("handle skip batch:{}", reason);
-        // record error
-        errorRecorder.recordError(new ConnectorExceptions.InvalidBatchError(batch, reason));
+        var result = showSkip(batch.getSinkRecords().size());
+        if (result) {
+            errorRecorder.recordError(new ConnectorExceptions.InvalidBatchError(batch, reason));
+        }
+        return result;
+    }
 
-        // skippable
+    boolean showSkip(int recordSize) {
         if (skipCount < 0) {
             return true;
         }
-        skipped.addAndGet(batch.getSinkRecords().size());
+        skipped.addAndGet(recordSize);
         return skipCount >= skipped.get();
     }
 
