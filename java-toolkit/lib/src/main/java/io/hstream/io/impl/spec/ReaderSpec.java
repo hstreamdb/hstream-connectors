@@ -27,7 +27,6 @@ public class ReaderSpec implements SpecGroup {
     @Getter
     static public class FromOffset implements SpecProperty {
         String name = FROM_OFFSET_NAME;
-        String uiGroup = "reader";
         String uiShowName = "From Offset";
         String type = "string";
         List<JsonNode> enumValues = List.of(

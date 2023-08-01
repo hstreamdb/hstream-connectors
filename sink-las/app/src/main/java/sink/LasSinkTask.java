@@ -16,7 +16,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.bytedance.las.tunnel.ActionType.*;
 import static com.bytedance.las.tunnel.TunnelConfig.SERVICE_REGION;
@@ -26,16 +25,16 @@ public class LasSinkTask implements SinkTask {
     HRecord cfg;
     StreamUploadSession session;
     Schema schema;
+    SinkTaskContext ctx;
 
     @SneakyThrows
     @Override
     public void run(HRecord cfg, SinkTaskContext ctx) {
         this.cfg = cfg;
+        this.ctx = ctx;
         init();
         // config
-        ctx.handle((batch) -> handleWithException(batch.getSinkRecords().stream()
-                .map(LasRecord::fromSinkRecord)
-                .collect(Collectors.toList())));
+        ctx.handle(this::handleWithException);
     }
 
     @SneakyThrows
@@ -64,12 +63,12 @@ public class LasSinkTask implements SinkTask {
         session = null;
     }
 
-    void handleWithException(List<LasRecord> records) {
+    void handleWithException(SinkRecordBatch batch) {
         try {
             if (session == null) {
                 init();
             }
-            handle(records);
+            handle(batch);
         } catch (Throwable e) {
             clean();
             throw e;
@@ -77,27 +76,41 @@ public class LasSinkTask implements SinkTask {
     }
 
     @SneakyThrows
-    void handle(List<LasRecord> records) {
+    void handle(SinkRecordBatch batch) {
         var recordWriter = session.openRecordWriter(/*blockId*/0);
-        for (var r : records) {
-            recordWriter.write(convertRecord(r));
+        for (var r : batch.getSinkRecords()) {
+            var targetRecord = convertRecord(r);
+            if (targetRecord == null) {
+                // skip error record
+                continue;
+            }
+            recordWriter.write(targetRecord);
         }
         recordWriter.close();
         session.commit(List.of(0L), List.of(recordWriter.getAttemptId()));
     }
 
-    GenericData.Record convertRecord(LasRecord lasRecord) {
-        var r = new GenericData.Record(schema);
-        for (var entry : lasRecord.getRecord().entrySet()) {
-            var value = entry.getValue();
-            if (schema.getField(entry.getKey()).schema().getType().equals(Schema.Type.INT)) {
-                var intValue = (int) value;
-                r.put(entry.getKey(), intValue);
-            } else {
-                r.put(entry.getKey(), value);
+    GenericData.Record convertRecord(SinkRecord sinkRecord) {
+        try {
+            var lasRecord = LasRecord.fromSinkRecord(sinkRecord);
+            var r = new GenericData.Record(schema);
+            for (var entry : lasRecord.getRecord().entrySet()) {
+                var value = entry.getValue();
+                if (schema.getField(entry.getKey()).schema().getType().equals(Schema.Type.INT)) {
+                    var intValue = (int) value;
+                    r.put(entry.getKey(), intValue);
+                } else {
+                    r.put(entry.getKey(), value);
+                }
             }
+            return r;
+        } catch (Exception e) {
+            log.warn("convertRecord failed:" + e.getMessage());
+            if (!ctx.getSinkSkipStrategy().trySkip(sinkRecord, e.getMessage())) {
+                throw new ConnectorExceptions.FailFastError(e.getMessage());
+            }
+            return null;
         }
-        return r;
     }
 
     static ActionType getActionType(String mode) {

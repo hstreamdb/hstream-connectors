@@ -14,13 +14,10 @@ import io.hstream.io.impl.StdioChannel;
 import io.hstream.io.impl.spec.ExtendedSpec;
 import io.hstream.io.internal.Channel;
 
-import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.concurrent.*;
-import java.util.function.Supplier;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -94,7 +91,11 @@ public class TaskRunner {
         }
         switch (jc.getParsedCommand()) {
             case "spec":
-                System.out.println(ExtendedSpec.merge(task.spec()));
+                if (task instanceof SourceTask) {
+                    System.out.println(task.spec());
+                } else {
+                    System.out.println(ExtendedSpec.merge(task.spec()));
+                }
                 System.out.flush();
                 break;
             case "check":
