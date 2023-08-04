@@ -55,8 +55,8 @@
       "default": "UPSERT"
     },
     "addExtraDateTimeField": {
-      "description": "Add a extra Datetime Field",
-      "ui:showName": "Add a extra Datetime field",
+      "description": "Add a Extra Datetime Field",
+      "ui:showName": "Add a Extra Datetime field",
       "type": "boolean",
       "default": false,
       "enum": [false, true]
