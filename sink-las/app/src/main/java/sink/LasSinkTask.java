@@ -49,7 +49,6 @@ public class LasSinkTask implements SinkTask {
         var region = cfg.getString("region");
         var db = cfg.getString("database");
         var table = cfg.getString("table");
-        var partitionType = cfg.getString("tableType");
         var actionType = getActionType(cfg.getString("mode"));
         TunnelConfig tunnelConfig = new TunnelConfig.Builder()
                 .config(SERVICE_REGION, region)
@@ -58,10 +57,10 @@ public class LasSinkTask implements SinkTask {
         TableTunnel tableTunnel = new TableTunnel(account, tunnelConfig);
         tableTunnel.setEndPoint(endpoint);
         log.info("creating upload session");
-        if (partitionType.equalsIgnoreCase("partition")) {
-            session = tableTunnel.createStreamUploadSession(db, table, PartitionSpec.SELF_ADAPTER, actionType);
-        } else {
+        if (cfg.contains("tableType") && cfg.getString("tableType").equalsIgnoreCase("normal")) {
             session = tableTunnel.createStreamUploadSession(db, table, actionType);
+        } else {
+            session = tableTunnel.createStreamUploadSession(db, table, PartitionSpec.SELF_ADAPTER, actionType);
         }
         log.info("created upload session");
         schema = session.getFullSchema();

@@ -44,6 +44,7 @@
     },
     "tableType": {
       "type": "string",
+      "ui:showName": "Table Type",
       "enum": ["partition", "normal"],
       "default": "partition"
     },
@@ -54,15 +55,15 @@
       "default": "UPSERT"
     },
     "addExtraDateTimeField": {
-      "description": "Add a extra datetime field",
-      "ui:showName": "Add a extra datetime field",
+      "description": "Add a extra Datetime Field",
+      "ui:showName": "Add a extra Datetime field",
       "type": "boolean",
       "default": false,
       "enum": [false, true]
     },
     "extraDateTimeFieldName": {
       "type": "string",
-      "ui:showName": "field name",
+      "ui:showName": "Field Name",
       "ui:condition": {
         "field": "addExtraDateTimeField",
         "value": true
@@ -70,7 +71,7 @@
     },
     "extraDateTimeFieldFormat": {
       "type": "string",
-      "ui:showName": "datetime format",
+      "ui:showName": "Datetime Format",
       "description": "DateTimeFormatter Pattern(e.g. yyyy-MM-dd)",
       "ui:condition": {
         "field": "addExtraDateTimeField",
@@ -78,7 +79,7 @@
       }
     }
   },
-  "required": ["stream", "accessId", "accessKey", "endpoint", "region", "database", "table", "tableType", "mode"],
+  "required": ["stream", "accessId", "accessKey", "endpoint", "region", "database", "table", "mode"],
   "ui:order": ["stream", "accessId", "accessKey", "endpoint", "region", "database", "table", "tableType", "mode",
     "addExtraDateTimeField", "extraDateTimeFieldName", "extraDateTimeFieldFormat"]
 }
