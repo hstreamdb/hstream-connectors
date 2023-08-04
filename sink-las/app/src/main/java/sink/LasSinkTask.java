@@ -27,11 +27,15 @@ public class LasSinkTask implements SinkTask {
     Schema schema;
     SinkTaskContext ctx;
 
+    // extra time field
+    ExtraTimeField extraTimeField;
+
     @SneakyThrows
     @Override
     public void run(HRecord cfg, SinkTaskContext ctx) {
         this.cfg = cfg;
         this.ctx = ctx;
+        this.extraTimeField = ExtraTimeField.fromConfig(cfg);
         init();
         // config
         ctx.handle(this::handleWithException);
@@ -45,6 +49,7 @@ public class LasSinkTask implements SinkTask {
         var region = cfg.getString("region");
         var db = cfg.getString("database");
         var table = cfg.getString("table");
+        var partitionType = cfg.getString("tableType");
         var actionType = getActionType(cfg.getString("mode"));
         TunnelConfig tunnelConfig = new TunnelConfig.Builder()
                 .config(SERVICE_REGION, region)
@@ -53,7 +58,11 @@ public class LasSinkTask implements SinkTask {
         TableTunnel tableTunnel = new TableTunnel(account, tunnelConfig);
         tableTunnel.setEndPoint(endpoint);
         log.info("creating upload session");
-        session = tableTunnel.createStreamUploadSession(db, table, PartitionSpec.SELF_ADAPTER, actionType);
+        if (partitionType.equalsIgnoreCase("partition")) {
+            session = tableTunnel.createStreamUploadSession(db, table, PartitionSpec.SELF_ADAPTER, actionType);
+        } else {
+            session = tableTunnel.createStreamUploadSession(db, table, actionType);
+        }
         log.info("created upload session");
         schema = session.getFullSchema();
         log.info("schema:{}", schema);
@@ -83,6 +92,9 @@ public class LasSinkTask implements SinkTask {
             if (targetRecord == null) {
                 // skip error record
                 continue;
+            }
+            if (extraTimeField != null) {
+                targetRecord.put(extraTimeField.getFieldName(), extraTimeField.getValue());
             }
             recordWriter.write(targetRecord);
         }
@@ -121,6 +133,20 @@ public class LasSinkTask implements SinkTask {
                 return OVERWRITE_INSERT;
             default:
                 return UPSERT;
+        }
+    }
+
+    @Override
+    public CheckResult check(HRecord config) {
+        try {
+            ExtraTimeField.fromConfig(config);
+            return CheckResult.ok();
+        } catch (Exception e) {
+            return CheckResult.builder()
+                    .result(false)
+                    .type(CheckResult.CheckResultType.CONFIG)
+                    .message("invalid extra datetime config: " + e.getMessage())
+                    .build();
         }
     }
 

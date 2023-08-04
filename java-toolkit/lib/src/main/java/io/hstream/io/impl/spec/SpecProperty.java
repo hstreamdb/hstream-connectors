@@ -31,6 +31,9 @@ public interface SpecProperty {
     default List<JsonNode> getEnumValues() {
         return null;
     }
+    default JsonNode getUiOptions() {
+        return null;
+    }
 
     default JsonNode toProperty() {
         var obj = Utils.mapper.createObjectNode().put("type", getType());
@@ -51,6 +54,9 @@ public interface SpecProperty {
         }
         if (getEnumValues() != null) {
             obj.set("enum", Utils.mapper.valueToTree(getEnumValues()));
+        }
+        if (getUiOptions() != null) {
+            obj.set("ui:options", getUiOptions());
         }
         return obj;
     }

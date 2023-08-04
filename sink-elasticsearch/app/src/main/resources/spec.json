@@ -26,6 +26,9 @@
       "ui:condition": {
         "field": "scheme",
         "value": "https"
+      },
+      "ui:options": {
+        "sensitive": true
       }
     },
     "index": {

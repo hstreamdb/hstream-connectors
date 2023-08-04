@@ -59,6 +59,9 @@ public class ErrorSpec implements SpecGroup {
         String name = STREAM_NAME;
         String uiShowName = "Error Stream";
         String type = "string";
+        String uiType = "stream";
+        JsonNode uiOptions = Utils.mapper.createObjectNode()
+                .put("allowNew", true);
     }
 
     @Getter

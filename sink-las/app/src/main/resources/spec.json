@@ -11,12 +11,18 @@
     "accessId": {
       "description": "access id",
       "type": "string",
-      "ui:type": "secret"
+      "ui:type": "secret",
+      "ui:options": {
+        "sensitive": true
+      }
     },
     "accessKey": {
       "description": "access key",
       "type": "string",
-      "ui:type": "secret"
+      "ui:type": "secret",
+      "ui:options": {
+        "sensitive": true
+      }
     },
     "endpoint": {
       "description": "endpoint",
@@ -36,13 +42,43 @@
       "description": "table",
       "type": "string"
     },
+    "tableType": {
+      "type": "string",
+      "enum": ["partition", "normal"],
+      "default": "partition"
+    },
     "mode": {
       "description": "write mode",
       "type": "string",
       "enum": ["UPSERT", "OVERWRITE_INSERT"],
       "default": "UPSERT"
+    },
+    "addExtraDateTimeField": {
+      "description": "Add a extra datetime field",
+      "ui:showName": "Add a extra datetime field",
+      "type": "boolean",
+      "default": false,
+      "enum": [false, true]
+    },
+    "extraDateTimeFieldName": {
+      "type": "string",
+      "ui:showName": "field name",
+      "ui:condition": {
+        "field": "addExtraDateTimeField",
+        "value": true
+      }
+    },
+    "extraDateTimeFieldFormat": {
+      "type": "string",
+      "ui:showName": "datetime format",
+      "description": "DateTimeFormatter Pattern(e.g. yyyy-MM-dd)",
+      "ui:condition": {
+        "field": "addExtraDateTimeField",
+        "value": true
+      }
     }
   },
-  "required": ["stream", "accessId", "accessKey", "endpoint", "region", "database", "table", "mode"],
-  "ui:order": ["stream", "accessId", "accessKey", "endpoint", "region", "database", "table", "mode"]
+  "required": ["stream", "accessId", "accessKey", "endpoint", "region", "database", "table", "tableType", "mode"],
+  "ui:order": ["stream", "accessId", "accessKey", "endpoint", "region", "database", "table", "tableType", "mode",
+    "addExtraDateTimeField", "extraDateTimeFieldName", "extraDateTimeFieldFormat"]
 }

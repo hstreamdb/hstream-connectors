@@ -15,6 +15,7 @@ public class ExtendedSpec {
         for (var group : specGroups) {
             ((ArrayNode)baseJson.get("ui:order")).add(Utils.mapper.createObjectNode()
                     .put("ui:type", "group")
+                    .put("expand", group.expand())
                     .put("name", group.name()));
             for (var p : group.properties()) {
                 if (p.getRequired()) {
