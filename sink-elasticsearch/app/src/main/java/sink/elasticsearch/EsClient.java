@@ -129,7 +129,12 @@ public class EsClient {
             var data = Utils.mapper.readValue(record.getRecord(), ObjectNode.class);
             String id = record.getRecordId();
             if (data.get("_id") != null) {
-                id = data.remove("_id").toString();
+                var idNode = data.remove("_id");
+                if (idNode.isTextual()) {
+                    id = idNode.asText();
+                } else {
+                    throw new RuntimeException("_id field must be string");
+                }
             }
             return MappedRecord.builder().id(id).source(data).build();
         } catch (Exception e) {

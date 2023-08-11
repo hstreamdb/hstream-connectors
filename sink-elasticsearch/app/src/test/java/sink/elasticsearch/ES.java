@@ -14,6 +14,7 @@ public class ES {
     public ES(boolean enableTls) {
         es = new GenericContainer<>(DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch:7.17.11"))
                 .withEnv("discovery.type", "single-node")
+                .withEnv("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
                 .withExposedPorts(9200)
                 .withLogConsumer(log -> System.out.print(log.getUtf8String()));
         if (enableTls) {
