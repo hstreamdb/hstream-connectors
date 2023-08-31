@@ -2,6 +2,7 @@ package sink.elasticsearch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hstream.HRecord;
+import io.hstream.HRecordBuilder;
 import io.hstream.io.SinkRecord;
 import io.hstream.io.test.FakeKvStore;
 import io.hstream.io.test.FakeSinkTaskContext;
@@ -28,27 +29,30 @@ public class BasicTest {
     @SneakyThrows
     @BeforeEach
     void setup(TestInfo info) {
-        if (info.getTags().contains("enableTls")) {
-            es = new ES(true);
-            String hosts = "localhost:" + es.getPort();
+        String password = info.getTags().contains("enableBasicAuth") ? "testPassword" : null;
+
+        var enableTls = info.getTags().contains("enableTls");
+        es = new ES(enableTls, password);
+        String hosts = "localhost:" + es.getPort();
+        String scheme = enableTls ? "https" : "http";
+
+        var configBuilder = HRecord.newBuilder()
+                .put("stream", "stream01")
+                .put("hosts", hosts)
+                .put("scheme", scheme)
+                .put("index", index);
+        if (enableTls) {
             var ca = IOUtils.toString(getClass().getResourceAsStream("/certs/ca.crt"), StandardCharsets.UTF_8);
-            cfg = HRecord.newBuilder()
-                    .put("stream", "stream01")
-                    .put("hosts", hosts)
-                    .put("scheme", "https")
-                    .put("ca", ca)
-                    .put("index", index)
-                    .build();
-        } else {
-            es = new ES(false);
-            String hosts = "localhost:" + es.getPort();
-            cfg = HRecord.newBuilder()
-                    .put("stream", "stream01")
-                    .put("hosts", hosts)
-                    .put("scheme", "http")
-                    .put("index", index)
-                    .build();
+            configBuilder = configBuilder.put("ca", ca);
         }
+        if (password != null) {
+            configBuilder = configBuilder
+                    .put("auth", "basic")
+                    .put("username", "elastic")
+                    .put("password", password);
+        }
+        cfg = configBuilder.build();
+
         // ctx
         ctx = new FakeSinkTaskContext();
         ctx.init(cfg, new FakeKvStore());
@@ -97,6 +101,13 @@ public class BasicTest {
         var rs = esClient.readRecords(index);
         log.info("rs:{}", rs);
         Assertions.assertEquals(10, rs.size());
+    }
+
+    @Tag("enableBasicAuth")
+    @SneakyThrows
+    @Test
+    void testBasicAuth() {
+        testFullSync();
     }
 
     List<SinkRecord> randSinkRecords(int count) {

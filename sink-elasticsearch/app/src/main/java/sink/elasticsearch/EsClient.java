@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.RestClient;
@@ -68,10 +69,15 @@ public class EsClient {
                     .loadTrustMaterial(trustStore, null);
             final SSLContext sslContext = sslContextBuilder.build();
             restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0]))
-                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLContext(sslContext))
+                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                            .setSSLContext(sslContext)
+                            .setDefaultCredentialsProvider(connectionConfig.getCredentialsProvider()))
                     .build();
         } else {
-            restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0])).build();
+            restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0]))
+                    .setHttpClientConfigCallback(httpAsyncClientBuilder -> httpAsyncClientBuilder
+                            .setDefaultCredentialsProvider(connectionConfig.getCredentialsProvider()))
+                    .build();
         }
 
         ElasticsearchTransport transport = new RestClientTransport(

@@ -31,11 +31,34 @@
         "sensitive": true
       }
     },
+    "auth": {
+      "description": "authentication method",
+      "ui:showName": "Authentication Method",
+      "type": "string",
+      "enum": ["none", "basic"],
+      "default": "none"
+    },
+    "username": {
+      "ui:showName": "User Name",
+      "type": "string",
+      "ui:condition": {
+        "field": "auth",
+        "value": "basic"
+      }
+    },
+    "password": {
+      "ui:showName": "User Password",
+      "type": "string",
+      "ui:condition": {
+        "field": "auth",
+        "value": "basic"
+      }
+    },
     "index": {
       "description": "elasticsearch index name",
       "type": "string"
     }
   },
   "required": [ "stream", "hosts", "scheme", "index" ],
-  "ui:order": [ "stream", "hosts", "scheme" ,"ca", "index" ]
+  "ui:order": [ "stream", "hosts", "scheme" ,"ca", "auth", "username", "password", "index" ]
 }

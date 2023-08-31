@@ -11,7 +11,7 @@ public class ES {
     GenericContainer<?> es;
 
     @SneakyThrows
-    public ES(boolean enableTls) {
+    public ES(boolean enableTls, String password) {
         es = new GenericContainer<>(DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch:7.17.11"))
                 .withEnv("discovery.type", "single-node")
                 .withEnv("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
@@ -26,6 +26,10 @@ public class ES {
             es.withEnv("xpack.security.http.ssl.key", "certs/server-pk8.key");
             es.withEnv("xpack.security.http.ssl.certificate", "certs/server.crt");
             es.withEnv("xpack.security.http.ssl.certificate_authorities", "certs/ca.crt");
+        }
+        if (password != null) {
+            es.withEnv("xpack.security.enabled", "true");
+            es.withEnv("ELASTIC_PASSWORD", password);
         }
         log.info("bind:{}", es.getBinds());
         es.start();

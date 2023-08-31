@@ -5,6 +5,11 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -18,6 +23,8 @@ public class ConnectionConfig {
     String scheme;
     List<Map.Entry<String, Integer>> hosts;
     String caPath;
+    String auth = "none";
+    CredentialsProvider credentialsProvider;
 
     public ConnectionConfig(HRecord cfg) {
         scheme = cfg.getString("scheme");
@@ -28,6 +35,14 @@ public class ConnectionConfig {
             }
             initCa(cfg.getString("ca"));
         }
+        if (cfg.contains("auth")) {
+            auth = cfg.getString("auth");
+        }
+        if (auth.equals("basic")) {
+            credentialsProvider = new BasicCredentialsProvider();
+            credentialsProvider.setCredentials(AuthScope.ANY,
+                    new UsernamePasswordCredentials(cfg.getString("username"), cfg.getString("password")));
+        }
     }
 
     @SneakyThrows
@@ -35,6 +50,11 @@ public class ConnectionConfig {
         return hosts.stream()
                 .map(host -> new HttpHost(host.getKey(), host.getValue(), scheme))
                 .collect(Collectors.toList());
+    }
+
+    @SneakyThrows
+    public CredentialsProvider getCredentialsProvider() {
+        return credentialsProvider;
     }
 
     @SneakyThrows
