@@ -2,7 +2,9 @@ name: Publish hstreamdb/sink-elasticsearch:standalone
 
 on:
   push:
-    branches: [ "standalone-sink-elasticsearch" ]
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   publish:
@@ -38,4 +40,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Push images to dockerhub
-        run: ./scripts/publish_images.sh conf/ci_publish_images
+        run: docker push hstreamdb/sink-elasticsearch:standalone
