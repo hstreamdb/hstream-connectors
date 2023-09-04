@@ -3,8 +3,6 @@ name: Publish hstreamdb/sink-elasticsearch:standalone
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   publish:
