@@ -61,7 +61,12 @@ task buildImages(type: Exec) {
 
 application {
     // Define the main class for the application.
-    mainClass = 'sink.elasticsearch.ElasticsearchSinkTask'
+    var imageVersion = System.getenv("CONNECTOR_IMAGE_VERSION")
+    if ("standalone" == imageVersion) {
+        mainClass = 'sink.elasticsearch.StandaloneElasticsearchSinkTask'
+    } else {
+        mainClass = 'sink.elasticsearch.ElasticsearchSinkTask'
+    }
 }
 
 tasks.named('test') {
