@@ -1,4 +1,4 @@
-name: Publish
+name: Publish hstreamdb/sink-elasticsearch:standalone
 
 on:
   push:
