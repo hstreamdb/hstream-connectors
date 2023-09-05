@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -25,6 +25,7 @@ public class StandAloneSinkTaskContext implements SinkTaskContext {
     SinkOffsetsManager sinkOffsetsManager;
     SinkSkipStrategy sinkSkipStrategy;
     SinkRetryStrategy retryStrategy;
+    final Map<Long, List<BatchAckResponder>> responders = new HashMap<>();
 
     @Override
     public KvStore getKvStore() {
@@ -91,10 +92,14 @@ public class StandAloneSinkTaskContext implements SinkTaskContext {
                         return;
                     }
                     var shardId = shardIdFromRecordId(records.get(0).getRecordId());
+                    // MUST NOT ENABLE BACKGROUND FLUSH
                     var sender = senders.computeIfAbsent(shardId,
-                            k -> new BufferedSender(stream, k, cCfg, executor, handlerWithAckResponder(handler, batchAckResponder)));
+                            k -> new BufferedSender(stream, k, cCfg, executor, handlerWithRetry(handler)));
+                    synchronized (responders) {
+                        var responderList = responders.computeIfAbsent(shardId, k -> new LinkedList<>());
+                        responderList.add(batchAckResponder);
+                    }
                     sender.put(sinkRecords);
-                    batchAckResponder.ackAll();
                 })
                 .build();
         latch = new CountDownLatch(1);
@@ -115,11 +120,8 @@ public class StandAloneSinkTaskContext implements SinkTaskContext {
         return Long.parseLong(recordId.split("-")[0]);
     }
 
-    Consumer<SinkRecordBatch> handlerWithAckResponder(Consumer<SinkRecordBatch> handler, BatchAckResponder responder) {
-        return batch -> {
-            handleWithRetry(handler, batch);
-            responder.ackAll();
-        };
+    Consumer<SinkRecordBatch> handlerWithRetry(Consumer<SinkRecordBatch> handler) {
+        return batch -> handleWithRetry(handler, batch);
     }
 
     @SneakyThrows
@@ -130,6 +132,11 @@ public class StandAloneSinkTaskContext implements SinkTaskContext {
             count++;
             try {
                 handler.accept(batch);
+                synchronized (responders) {
+                    var responderList = responders.get(batch.getShardId());
+                    responderList.forEach(BatchAckResponder::ackAll);
+                    responderList.clear();
+                }
                 return;
             } catch (ConnectorExceptions.FailFastError e){
                 log.warn("fail fast error:{}", e.getMessage());
