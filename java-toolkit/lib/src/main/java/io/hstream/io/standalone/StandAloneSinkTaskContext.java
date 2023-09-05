@@ -25,7 +25,7 @@ public class StandAloneSinkTaskContext implements SinkTaskContext {
     SinkOffsetsManager sinkOffsetsManager;
     SinkSkipStrategy sinkSkipStrategy;
     SinkRetryStrategy retryStrategy;
-    final Map<Long, List<BatchAckResponder>> responders = new HashMap<>();
+    final Map<Long, List<Map.Entry<String, BatchAckResponder>>> responders = new HashMap<>();
 
     @Override
     public KvStore getKvStore() {
@@ -91,13 +91,13 @@ public class StandAloneSinkTaskContext implements SinkTaskContext {
                         log.warn("received empty sink records");
                         return;
                     }
+                    var lastRecordId = records.get(records.size() - 1).getRecordId();
                     var shardId = shardIdFromRecordId(records.get(0).getRecordId());
-                    // MUST NOT ENABLE BACKGROUND FLUSH
                     var sender = senders.computeIfAbsent(shardId,
                             k -> new BufferedSender(stream, k, cCfg, executor, handlerWithRetry(handler)));
                     synchronized (responders) {
                         var responderList = responders.computeIfAbsent(shardId, k -> new LinkedList<>());
-                        responderList.add(batchAckResponder);
+                        responderList.add(Map.entry(lastRecordId, batchAckResponder));
                     }
                     sender.put(sinkRecords);
                 })
@@ -132,9 +132,15 @@ public class StandAloneSinkTaskContext implements SinkTaskContext {
             count++;
             try {
                 handler.accept(batch);
+                var lastRecordId = batch.getSinkRecords().get(batch.getSinkRecords().size() - 1).getRecordId();
                 synchronized (responders) {
                     var responderList = responders.get(batch.getShardId());
-                    responderList.forEach(BatchAckResponder::ackAll);
+                    for (var entry : responderList) {
+                        entry.getValue().ackAll();
+                        if (entry.getKey().equals(lastRecordId)) {
+                            break;
+                        }
+                    }
                     responderList.clear();
                 }
                 return;

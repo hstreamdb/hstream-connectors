@@ -41,7 +41,11 @@ public class BufferedSender {
             executor.scheduleAtFixedRate(this::flush, maxRecordAge, maxRecordAge, TimeUnit.MILLISECONDS);
         }
         if (cfg.contains(ENABLE_BACKGROUND_FLUSH)) {
-            queue = new LinkedBlockingQueue<>(10);
+            var queueSize = 10;
+            if (cfg.contains("buffer.queue.size")) {
+                queueSize = cfg.getInt("buffer.queue.size");
+            }
+            queue = new LinkedBlockingQueue<>(queueSize);
             createSenderThread();
         }
     }
