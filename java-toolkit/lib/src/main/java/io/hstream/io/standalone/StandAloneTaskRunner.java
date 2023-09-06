@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -61,7 +62,6 @@ public class StandAloneTaskRunner {
     HRecord cfg;
     SinkTask task;
     static ObjectMapper mapper = new ObjectMapper();
-    ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
 
     @SneakyThrows
     public void run(String[] args, SinkTask task, SinkTaskContext context) {

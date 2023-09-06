@@ -11,9 +11,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -28,6 +29,11 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
     SinkOffsetsManager sinkOffsetsManager;
     SinkSkipStrategy sinkSkipStrategy;
     SinkRetryStrategy retryStrategy;
+
+    boolean enableLogReport = false;
+    ScheduledExecutorService logExecutor;
+    AtomicLong deliveredRecords = new AtomicLong(0);
+    AtomicLong deliveredBytes = new AtomicLong(0);
 
     @Override
     public KvStore getKvStore() {
@@ -63,6 +69,15 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
         var errorRecorder = new ErrorRecorder(client, cCfg);
         retryStrategy = new SinkRetryStrategy(cCfg);
         sinkSkipStrategy = new SinkSkipStrategyImpl(cCfg, errorRecorder);
+
+        // log report
+        if (cCfg.contains("enableLogReport")) {
+            enableLogReport = cCfg.getBoolean("enableLogReport");
+            if (enableLogReport) {
+                setupLogReport();
+            }
+        }
+
 //        var taskId = cfg.getString("task");
         var stream = cCfg.getString("stream");
         var shards = client.listShards(stream);
@@ -83,6 +98,10 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
                 }
             }
             sinkOffsetsManager.update(batch.getShardId(), batch.getSinkRecords().get(batch.getSinkRecords().size() - 1).getRecordId());
+            retryStrategy.resetRetry(batch.getShardId());
+            if (enableLogReport) {
+                updateMetrics(batch.getSinkRecords());
+            }
         };
         for (var shard : shards) {
             StreamShardOffset offset;
@@ -172,6 +191,24 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
                 Thread.sleep(retryInterval * count * 1000L);
             }
         }
+    }
+
+    void updateMetrics(List<SinkRecord> records) {
+        var bytesSize = 0;
+        for (var r : records) {
+            bytesSize += r.record.length;
+        }
+        deliveredBytes.addAndGet(bytesSize);
+        deliveredRecords.addAndGet(records.size());
+    }
+
+    void setupLogReport() {
+        logExecutor = Executors.newSingleThreadScheduledExecutor();
+        logExecutor.scheduleAtFixedRate(() -> {
+            var db = deliveredBytes.getAndSet(0);
+            var dr = deliveredRecords.getAndSet(0);
+            log.info("delivered bytes:{} Bytes/s, {} M/s , {} records/s", db, db / (1024 * 1024), dr);
+        }, 1, 1, TimeUnit.SECONDS);
     }
 
     void fail() {
