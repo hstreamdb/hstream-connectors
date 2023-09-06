@@ -4,10 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.hstream.HRecord;
 import io.hstream.io.SinkTask;
 import io.hstream.io.SinkTaskContext;
-import io.hstream.io.TaskRunner;
 import io.hstream.io.Utils;
-import io.hstream.io.impl.SinkTaskContextImpl;
-import io.hstream.io.standalone.StandAloneSinkTaskContext;
+import io.hstream.io.standalone.StandaloneSinkTaskContext;
 import io.hstream.io.standalone.StandAloneTaskRunner;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,6 +33,6 @@ public class StandaloneElasticsearchSinkTask implements SinkTask {
     public static void main(String[] args) {
         System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
         log.info("setting up StandaloneElasticsearchSinkTask");
-        new StandAloneTaskRunner().run(args, new StandaloneElasticsearchSinkTask(), new StandAloneSinkTaskContext());
+        new StandAloneTaskRunner().run(args, new StandaloneElasticsearchSinkTask(), new StandaloneSinkTaskContext());
     }
 }
