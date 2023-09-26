@@ -83,7 +83,6 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             log.warn("source stream shards > 1");
         }
         latch = new CountDownLatch(1);
-        var offsets = sinkOffsetsManager.getStoredOffsets();
         var timeFlushExecutor = new ScheduledThreadPoolExecutor(4);
         // inner handler for BufferedSender
         Consumer<SinkRecordBatch> innerHandler = batch -> {
@@ -99,23 +98,12 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             retryStrategy.resetRetry(batch.getShardId());
         };
         for (var shard : shards) {
-            StreamShardOffset offset;
-            if (offsets.containsKey(shard.getShardId())) {
-                offset = new StreamShardOffset(offsets.get(shard.getShardId()));
-            } else {
-                offset = getOffsetFromConfig(cCfg);
-            }
             new Thread(() -> {
-                try (var reader = client.newReader()
-                        .streamName(stream)
-                        .readerId("io_reader_" + UUID.randomUUID())
-                        .shardId(shard.getShardId())
-                        .shardOffset(offset)
-                        .timeoutMs(1000)
-                        .build()) {
+                try {
                     BufferedSender sender = new BufferedSender(stream, shard.getShardId(), cCfg, timeFlushExecutor, innerHandler);
                     int retry = 0;
                     int maxRetry = 3;
+                    var reader = getReader(stream, shard.getShardId(), cCfg);
                     while (true) {
                         try {
                             var records = reader.read(1).join();
@@ -131,6 +119,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                                 throw new RuntimeException("retry failed");
                             }
                             Thread.sleep(retry * 3000L);
+                            reader = getReader(stream, shard.getShardId(), cCfg);
                         }
                     }
                 } catch (Exception e) {
@@ -142,6 +131,25 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         latch.await();
         log.info("closing connector");
         close();
+    }
+
+    StreamShardOffset getOffset(long shardId, HRecord cfg) {
+        var offsets = sinkOffsetsManager.getStoredOffsets();
+        if (offsets.containsKey(shardId)) {
+            return new StreamShardOffset(offsets.get(shardId));
+        } else {
+            return getOffsetFromConfig(cfg);
+        }
+    }
+
+    Reader getReader(String stream, long shardId, HRecord cfg) {
+        return client.newReader()
+                .streamName(stream)
+                .readerId("io_reader_" + UUID.randomUUID())
+                .shardId(shardId)
+                .shardOffset(getOffset(shardId, cfg))
+                .timeoutMs(1000)
+                .build();
     }
 
     StreamShardOffset getOffsetFromConfig(HRecord cfg) {
