@@ -145,7 +145,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     Reader getReader(String stream, long shardId, HRecord cfg) {
         return client.newReader()
                 .streamName(stream)
-                .readerId("io_reader_" + UUID.randomUUID())
+                .readerId("io_reader_" + UUID.randomUUID().toString().replace("-", "_"))
                 .shardId(shardId)
                 .shardOffset(getOffset(shardId, cfg))
                 .timeoutMs(1000)

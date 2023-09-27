@@ -5,22 +5,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hstream.io.KvStore;
 import io.hstream.io.SinkOffsetsManager;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+@Slf4j
 public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
     KvStore kvStore;
     String offsetsKey;
     ConcurrentHashMap<Long, String> offsets = new ConcurrentHashMap<>();
     AtomicReference<HashMap<Long, String>> storedOffsets = new AtomicReference<>(new HashMap<>());
-    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     static ObjectMapper mapper = new ObjectMapper();
     AtomicInteger bufferState = new AtomicInteger(0);
 
@@ -28,7 +26,7 @@ public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
         this.kvStore = kvStore;
         this.offsetsKey = prefix + "_offsets";
         init();
-        executor.scheduleAtFixedRate(this::storeOffsets, 1, 1, TimeUnit.SECONDS);
+        new Thread(this::storeOffsets).start();
     }
 
     @SneakyThrows
@@ -49,13 +47,20 @@ public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
 
     @SneakyThrows
     void storeOffsets() {
-        if (bufferState.get() == 2) {
-            return;
+        while (true) {
+            try {
+                Thread.sleep(1000);
+                if (bufferState.get() == 2) {
+                    continue;
+                }
+                var stored = new HashMap<>(offsets);
+                kvStore.set(offsetsKey, mapper.writeValueAsString(stored)).get();
+                storedOffsets.set(stored);
+                bufferState.incrementAndGet();
+            } catch (Throwable e) {
+                log.info("store Offsets failed, ", e);
+            }
         }
-        var stored = new HashMap<>(offsets);
-        kvStore.set(offsetsKey, mapper.writeValueAsString(stored));
-        storedOffsets.set(stored);
-        bufferState.incrementAndGet();
     }
 
     @Override
@@ -64,7 +69,5 @@ public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
     }
 
     @Override
-    public void close() {
-        executor.shutdown();
-    }
+    public void close() {}
 }

@@ -65,7 +65,6 @@ public class TaskRunner {
     Rpc rpc;
     KvStore kv;
     static ObjectMapper mapper = new ObjectMapper();
-    ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
 
     @SneakyThrows
     public void run(String[] args, Task task, TaskContext taskContext) {
@@ -106,11 +105,11 @@ public class TaskRunner {
                 break;
             case "run":
                 parseConfig(runCmd.configPath);
-                executor.execute(this::recvCmd);
+                new Thread(this::recvCmd).start();
                 var connectorConfig = cfg.getHRecord("connector");
                 try {
                     ctx.init(cfg, kv);
-                    executor.scheduleAtFixedRate(this::report, 3, 3, TimeUnit.SECONDS);
+                    new Thread(this::report).start();
                     if (task instanceof SourceTask) {
                         var st = (SourceTask) task;
                         var stc = (SourceTaskContext) taskContext;
@@ -171,18 +170,21 @@ public class TaskRunner {
         });
     }
 
+    @SneakyThrows
     public void report() {
-        log.info("reporting task information");
-        try {
-            var reportMessage = ctx.getReportMessage();
-            if (task instanceof SourceTask) {
-                reportMessage.setOffsets(((SourceTask) task).getOffsets());
+        while (true) {
+            try {
+                Thread.sleep(3000);
+                log.info("reporting task information");
+                var reportMessage = ctx.getReportMessage();
+                if (task instanceof SourceTask) {
+                    reportMessage.setOffsets(((SourceTask) task).getOffsets());
+                }
+                rpc.report(reportMessage).get(30, TimeUnit.SECONDS);
+            } catch (Throwable e) {
+                log.info("report exited, ", e);
+                System.exit(1);
             }
-            rpc.report(reportMessage).get(5, TimeUnit.SECONDS);
-        } catch (Throwable e) {
-            log.info("report exited:{}", e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
         }
     }
 
