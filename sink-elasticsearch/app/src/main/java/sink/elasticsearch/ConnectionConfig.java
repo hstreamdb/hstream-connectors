@@ -9,6 +9,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.SystemDefaultCredentialsProvider;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,10 +31,12 @@ public class ConnectionConfig {
         scheme = cfg.getString("scheme");
         hosts = parseHosts(cfg.getString("hosts"));
         if (scheme.equalsIgnoreCase("https")) {
-            if (!cfg.contains("ca")) {
-                throw new RuntimeException("ca should not be null in https schema");
+            if (cfg.contains("ca")) {
+                var ca = cfg.getString("ca");
+                if (!ca.isBlank()) {
+                    initCa(ca);
+                }
             }
-            initCa(cfg.getString("ca"));
         }
         if (cfg.contains("auth")) {
             auth = cfg.getString("auth");

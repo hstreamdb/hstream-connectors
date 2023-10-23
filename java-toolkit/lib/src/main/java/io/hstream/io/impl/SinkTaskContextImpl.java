@@ -179,6 +179,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                 return;
             } catch (ConnectorExceptions.FailFastError e){
                 log.warn("fail fast error:{}", e.getMessage());
+                fail();
                 throw e;
             } catch (Throwable e) {
                 log.warn("delivery record failed:{}, tried:{}", e.getMessage(), count);

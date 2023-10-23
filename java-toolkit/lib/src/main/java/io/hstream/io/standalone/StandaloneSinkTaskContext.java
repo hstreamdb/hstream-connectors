@@ -6,6 +6,12 @@ import io.hstream.ReceivedRecord;
 import io.hstream.StreamShardOffset;
 import io.hstream.io.*;
 import io.hstream.io.impl.*;
+import io.prometheus.metrics.core.datapoints.Timer;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Histogram;
+import io.prometheus.metrics.exporter.httpserver.HTTPServer;
+import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
+import io.prometheus.metrics.model.snapshots.Unit;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
@@ -31,9 +37,18 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
     SinkRetryStrategy retryStrategy;
 
     boolean enableLogReport = false;
+    boolean enablePrometheusReport = false;
     ScheduledExecutorService logExecutor;
+    HTTPServer prometheusHttpServer;
     AtomicLong deliveredRecords = new AtomicLong(0);
     AtomicLong deliveredBytes = new AtomicLong(0);
+    Counter readRecordsCounter;
+    Counter readBytesCounter;
+    Counter deliveredRecordsCounter;
+    Counter deliveredBytesCounter;
+    Histogram readLatency;
+    Histogram deliveredLatency;
+    String stream;
 
     @Override
     public KvStore getKvStore() {
@@ -70,6 +85,14 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
         retryStrategy = new SinkRetryStrategy(cCfg);
         sinkSkipStrategy = new SinkSkipStrategyImpl(cCfg, errorRecorder);
 
+        // prometheus report
+        if (cCfg.contains("enablePrometheusReport")) {
+            enablePrometheusReport = cCfg.getBoolean("enablePrometheusReport");
+            if (enablePrometheusReport) {
+                setupPrometheusReport();
+            }
+        }
+
         // log report
         if (cCfg.contains("enableLogReport")) {
             enableLogReport = cCfg.getBoolean("enableLogReport");
@@ -79,7 +102,7 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
         }
 
 //        var taskId = cfg.getString("task");
-        var stream = cCfg.getString("stream");
+        stream = cCfg.getString("stream");
         var shards = client.listShards(stream);
         if (shards.size() > 1) {
             log.warn("source stream shards > 1");
@@ -99,9 +122,6 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
             }
             sinkOffsetsManager.update(batch.getShardId(), batch.getSinkRecords().get(batch.getSinkRecords().size() - 1).getRecordId());
             retryStrategy.resetRetry(batch.getShardId());
-            if (enableLogReport) {
-                updateMetrics(batch.getSinkRecords());
-            }
         };
         for (var shard : shards) {
             StreamShardOffset offset;
@@ -123,9 +143,19 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
                     int maxRetry = 3;
                     while (true) {
                         try {
+                            Timer latencyTimer = null;
+                            if (enablePrometheusReport) {
+                                latencyTimer = readLatency.labelValues(stream, String.valueOf(shard.getShardId())).startTimer();
+                            }
                             var records = reader.read(1).join();
+                            if (latencyTimer != null) {
+                                latencyTimer.close();
+                            }
                             if (records.size() > 0) {
                                 var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
+                                if (enablePrometheusReport) {
+                                    updateReadMetrics(shard.getShardId(), sinkRecords);
+                                }
                                 sender.put(sinkRecords);
                             }
                             retry = 0;
@@ -172,10 +202,21 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
         while (true) {
             count++;
             try {
+                Timer latencyTimer = null;
+                if (enablePrometheusReport) {
+                    latencyTimer = deliveredLatency.labelValues(stream, String.valueOf(batch.getShardId())).startTimer();
+                }
                 handler.accept(batch);
+                if (latencyTimer != null) {
+                    latencyTimer.close();
+                }
+                if (enableLogReport || enablePrometheusReport) {
+                    updateMetrics(batch.getShardId(), batch.getSinkRecords());
+                }
                 return;
             } catch (ConnectorExceptions.FailFastError e){
                 log.warn("fail fast error:{}", e.getMessage());
+                fail();
                 throw e;
             } catch (Throwable e) {
                 log.warn("delivery record failed:{}, tried:{}", e.getMessage(), count);
@@ -193,13 +234,30 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
         }
     }
 
-    void updateMetrics(List<SinkRecord> records) {
+    void updateMetrics(long shard, List<SinkRecord> records) {
         var bytesSize = 0;
         for (var r : records) {
             bytesSize += r.record.length;
         }
-        deliveredBytes.addAndGet(bytesSize);
-        deliveredRecords.addAndGet(records.size());
+        if (enableLogReport) {
+            deliveredBytes.addAndGet(bytesSize);
+            deliveredRecords.addAndGet(records.size());
+        }
+        if (enablePrometheusReport) {
+            deliveredBytesCounter.labelValues(stream, String.valueOf(shard)).inc(bytesSize);
+            deliveredRecordsCounter.labelValues(stream, String.valueOf(shard)).inc(records.size());
+        }
+    }
+
+    void updateReadMetrics(long shard, List<SinkRecord> records) {
+        var bytesSize = 0;
+        for (var r : records) {
+            bytesSize += r.record.length;
+        }
+        if (enablePrometheusReport) {
+            readBytesCounter.labelValues(stream, String.valueOf(shard)).inc(bytesSize);
+            readRecordsCounter.labelValues(stream, String.valueOf(shard)).inc(records.size());
+        }
     }
 
     void setupLogReport() {
@@ -209,6 +267,56 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
             var dr = deliveredRecords.getAndSet(0);
             log.info("delivered bytes:{} Bytes/s, {} M/s , {} records/s", db, db / (1024 * 1024), dr);
         }, 1, 1, TimeUnit.SECONDS);
+    }
+
+    @SneakyThrows
+    void setupPrometheusReport() {
+        JvmMetrics.builder().register();
+
+        // Note: uptime_seconds_total is not a great example:
+        // The built-in JvmMetrics have an out-of-the-box metric named process_start_time_seconds
+        // with the start timestamp in seconds, so if you want to know the uptime you can simply
+        // run the Prometheus query
+        //     time() - process_start_time_seconds
+        // rather than creating a custom uptime metric.
+        readBytesCounter = Counter.builder()
+                .name("connector_read_bytes")
+                .help("read bytes from source stream")
+                .labelNames("streamName", "shardId")
+                .register();
+        readRecordsCounter = Counter.builder()
+                .name("connector_read_records")
+                .help("delivered(and skipped) records")
+                .labelNames("streamName", "shardId")
+                .register();
+        deliveredBytesCounter = Counter.builder()
+                .name("connector_delivered_bytes")
+                .help("delivered bytes")
+                .labelNames("streamName", "shardId")
+                .register();
+        deliveredRecordsCounter = Counter.builder()
+                .name("connector_delivered_records")
+                .help("delivered records")
+                .labelNames("streamName", "shardId")
+                .register();
+
+        // latency
+        readLatency = Histogram.builder()
+                .name("connector_read_latency")
+                .help("read latency")
+                .labelNames("streamName", "shardId")
+                .register();
+        deliveredLatency = Histogram.builder()
+                .name("connector_delivered_latency")
+                .help("delivered latency")
+                .labelNames("streamName", "shardId")
+                .register();
+
+        prometheusHttpServer = HTTPServer.builder()
+                .port(9400)
+                .buildAndStart();
+
+        log.info("Prometheus http server listening on port http://localhost:{}/metrics", prometheusHttpServer.getPort());
     }
 
     void fail() {
