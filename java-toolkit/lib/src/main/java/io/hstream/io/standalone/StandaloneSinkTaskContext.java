@@ -46,6 +46,7 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
     Counter readBytesCounter;
     Counter deliveredRecordsCounter;
     Counter deliveredBytesCounter;
+    Counter skippedRecordsCounter;
     Histogram readLatency;
     Histogram deliveredLatency;
     String stream;
@@ -222,6 +223,10 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
                 log.warn("delivery record failed:{}, tried:{}", e.getMessage(), count);
                 if (!retryStrategy.showRetry(batch.getShardId(), e)) {
                     if (sinkSkipStrategy.trySkipBatch(batch, e.getMessage())) {
+                        if (enablePrometheusReport) {
+                            skippedRecordsCounter.labelValues(stream, String.valueOf(batch.getShardId()))
+                                    .inc(batch.getSinkRecords().size());
+                        }
                         return;
                     } else {
                         fail();
@@ -297,6 +302,12 @@ public class StandaloneSinkTaskContext implements SinkTaskContext {
         deliveredRecordsCounter = Counter.builder()
                 .name("connector_delivered_records")
                 .help("delivered records")
+                .labelNames("streamName", "shardId")
+                .register();
+
+        skippedRecordsCounter = Counter.builder()
+                .name("connector_skipped_records")
+                .help("skipped records")
                 .labelNames("streamName", "shardId")
                 .register();
 
