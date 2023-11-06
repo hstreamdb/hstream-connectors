@@ -72,7 +72,11 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     public void handleInternal(Consumer<SinkRecordBatch> handler, boolean parallel) {
         var hsCfg = cfg.getHRecord("hstream");
         var cCfg = cfg.getHRecord("connector");
-        client = HStreamClient.builder().serviceUrl(hsCfg.getString("serviceUrl")).build();
+        var serviceUrl = hsCfg.getString("serviceUrl");
+        if (System.getenv("HSTREAM_SERVICE_URL") != null) {
+            serviceUrl = System.getenv("HSTREAM_SERVICE_URL");
+        }
+        client = HStreamClient.builder().serviceUrl(serviceUrl).build();
         var errorRecorder = new ErrorRecorder(client, cCfg);
         retryStrategy = new SinkRetryStrategy(cCfg);
         sinkSkipStrategy = new SinkSkipStrategyImpl(cCfg, errorRecorder);

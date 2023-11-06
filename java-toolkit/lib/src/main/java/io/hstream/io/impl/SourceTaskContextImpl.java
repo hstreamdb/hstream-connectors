@@ -24,7 +24,11 @@ public class SourceTaskContextImpl implements SourceTaskContext {
     public void init(HRecord cfg, KvStore kv) {
         var hsCfg = cfg.getHRecord("hstream");
         this.kvStore = kv;
-        client = HStreamClient.builder().serviceUrl(hsCfg.getString("serviceUrl")).build();
+        var serviceUrl = hsCfg.getString("serviceUrl");
+        if (System.getenv("HSTREAM_SERVICE_URL") != null) {
+            serviceUrl = System.getenv("HSTREAM_SERVICE_URL");
+        }
+        client = HStreamClient.builder().serviceUrl(serviceUrl).build();
     }
 
     @Override
