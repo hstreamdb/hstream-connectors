@@ -62,9 +62,11 @@ task buildImages(type: Exec) {
 application {
     // Define the main class for the application.
     var imageVersion = System.getenv("CONNECTOR_IMAGE_VERSION")
-    if ("standalone" == imageVersion) {
+    if (imageVersion != null && imageVersion.startsWith("standalone")) {
+        System.out.println("Build standalone version:" + imageVersion)
         mainClass = 'sink.elasticsearch.StandaloneElasticsearchSinkTask'
     } else {
+        System.out.println("Build normal version:" + imageVersion)
         mainClass = 'sink.elasticsearch.ElasticsearchSinkTask'
     }
 }
