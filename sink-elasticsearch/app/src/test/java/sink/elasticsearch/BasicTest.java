@@ -3,6 +3,7 @@ package sink.elasticsearch;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hstream.HRecord;
 import io.hstream.HRecordBuilder;
+import io.hstream.io.CheckResult;
 import io.hstream.io.SinkRecord;
 import io.hstream.io.test.FakeKvStore;
 import io.hstream.io.test.FakeSinkTaskContext;
@@ -25,6 +26,7 @@ public class BasicTest {
     HRecord cfg;
     String index = "index01";
     static ObjectMapper mapper = new ObjectMapper();
+    Integer defaultPort = 1234;
 
     @SneakyThrows
     @BeforeEach
@@ -33,7 +35,11 @@ public class BasicTest {
 
         var enableTls = info.getTags().contains("enableTls");
         es = new ES(enableTls, password);
-        String hosts = "localhost:" + es.getPort();
+        var port = es.getPort();
+        if (info.getTags().contains("useDefaultPort")) {
+            port = defaultPort;
+        }
+        String hosts = "localhost:" + port;
         String scheme = enableTls ? "https" : "http";
 
         var configBuilder = HRecord.newBuilder()
@@ -46,6 +52,9 @@ public class BasicTest {
             configBuilder = configBuilder.put("ca", ca);
         }
         if (password != null) {
+            if (info.getTags().contains("useWrongPassword")) {
+                password = "WrongPassword";
+            }
             configBuilder = configBuilder
                     .put("auth", "basic")
                     .put("username", "elastic")
@@ -108,6 +117,34 @@ public class BasicTest {
     @Test
     void testBasicAuth() {
         testFullSync();
+    }
+
+    @Tag("useDefaultPort")
+    @Test
+    void testConnectionCheckWithWrongPort() {
+        var task = new ElasticsearchSinkTask();
+        var result = task.check(cfg);
+        System.out.println("check result:" + result);
+        Assertions.assertFalse(result.getResult());
+        Assertions.assertEquals(CheckResult.CheckResultType.CONNECTION, result.getType());
+    }
+
+    @Tag("enableBasicAuth")
+    @Tag("useWrongPassword")
+    @Test
+    void testConnectionCheckWithWrongPassword() {
+        var task = new ElasticsearchSinkTask();
+        var result = task.check(cfg);
+        System.out.println("check result:" + result);
+        Assertions.assertFalse(result.getResult());
+        Assertions.assertEquals(CheckResult.CheckResultType.CONNECTION, result.getType());
+    }
+
+    @Test
+    void testConnectionCheck() {
+        var task = new ElasticsearchSinkTask();
+        var result = task.check(cfg);
+        Assertions.assertTrue(result.getResult());
     }
 
     List<SinkRecord> randSinkRecords(int count) {
