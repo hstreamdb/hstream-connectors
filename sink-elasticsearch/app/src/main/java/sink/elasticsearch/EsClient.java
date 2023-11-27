@@ -16,13 +16,13 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.RestClient;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -88,6 +88,31 @@ public class EsClient {
     void reset() {
         synchronized (connectionConfig) {
             esClient = null;
+        }
+    }
+
+    CheckResult checkConnection() {
+        var client = getConnection();
+        try {
+            var result = client.ping();
+            log.info("es client ping result:{}", result.value());
+            var aliases = client.indices().getAlias().result();
+            log.info("es client aliases:{}", aliases);
+            if (result.value()) {
+                return CheckResult.builder().result(true).build();
+            } else {
+                return CheckResult.builder().result(false)
+                        .type(CheckResult.CheckResultType.CONNECTION)
+                        .message("es client ping failed")
+                        .build();
+            }
+        } catch (Throwable e) {
+            log.error("ping error:", e);
+            return CheckResult.builder()
+                    .result(false)
+                    .type(CheckResult.CheckResultType.CONNECTION)
+                    .message("es client ping error:" + e.getMessage())
+                    .build();
         }
     }
 

@@ -2,6 +2,7 @@ package sink.elasticsearch;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.hstream.HRecord;
+import io.hstream.io.CheckResult;
 import io.hstream.io.SinkTask;
 import io.hstream.io.SinkTaskContext;
 import io.hstream.io.Utils;
@@ -25,6 +26,12 @@ public class StandaloneElasticsearchSinkTask implements SinkTask {
     @Override
     public JsonNode spec() {
         return Utils.getSpec(this, "/spec.json");
+    }
+
+    @Override
+    public CheckResult check(HRecord config) {
+        var esClient = new EsClient(config);
+        return esClient.checkConnection();
     }
 
     @Override
