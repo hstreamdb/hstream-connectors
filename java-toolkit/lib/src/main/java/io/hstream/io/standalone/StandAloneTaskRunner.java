@@ -92,7 +92,7 @@ public class StandAloneTaskRunner {
                 parseConfig(checkCmd.configPath);
                 var result = check(task);
                 System.out.println(mapper.writeValueAsString(result));
-                System.out.println("CONNECTOR CHECK FAILED!");
+                System.out.println("CONNECTOR CHECK RESULT:" + result.getResult());
                 System.out.flush();
                 break;
             case "run":
