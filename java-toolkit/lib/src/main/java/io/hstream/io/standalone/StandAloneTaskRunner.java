@@ -17,9 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 
 @Slf4j
@@ -95,10 +92,16 @@ public class StandAloneTaskRunner {
                 parseConfig(checkCmd.configPath);
                 var result = check(task);
                 System.out.println(mapper.writeValueAsString(result));
+                System.out.println("CONNECTOR CHECK RESULT:" + result.getResult());
                 System.out.flush();
                 break;
             case "run":
                 parseConfig(runCmd.configPath);
+                var checkResult = check(task);
+                if (!checkResult.getResult()) {
+                    log.error("connector check failed, result:{}", mapper.writeValueAsString(checkResult));
+                    System.exit(1);
+                }
                 var connectorConfig = cfg.getHRecord("connector");
                 try {
                     ctx.init(cfg, new NullKvStore());
@@ -128,7 +131,7 @@ public class StandAloneTaskRunner {
                     .build();
         }
         // task check
-        return task.check(cfg);
+        return task.check(cfg.getHRecord("connector"));
     }
 
     void parseConfig(String cfgPath) {

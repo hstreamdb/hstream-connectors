@@ -163,7 +163,7 @@ abstract public class JdbcSinkTask implements SinkTask {
     @Override
     public CheckResult check(HRecord config) {
         try {
-            init(config.getHRecord("connector"));
+            init(config);
         } catch (Throwable e) {
             e.printStackTrace();
             log.info("check failed, {}", e.getMessage());
