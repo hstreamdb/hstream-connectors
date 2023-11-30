@@ -144,7 +144,7 @@ public class TaskRunner {
                     .build();
         }
         // task check
-        return task.check(cfg);
+        return task.check(cfg.getHRecord("connector"));
     }
 
     void parseConfig(String cfgPath) {
