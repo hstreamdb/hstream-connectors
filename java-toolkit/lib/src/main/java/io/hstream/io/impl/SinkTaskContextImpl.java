@@ -55,7 +55,9 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     public void init(HRecord config, KvStore kv) {
         this.cfg = config;
         this.kv = kv;
-        sinkOffsetsManager = new SinkOffsetsManagerImpl(kv, "SinkOffsetsManagerImpl");
+        var cCfg = cfg.getHRecord("connector");
+        var serviceUrl = cfg.getHRecord("hstream").getString("serviceUrl");
+        sinkOffsetsManager = new SinkOffsetsManagerImpl(kv, "SinkOffsetsManagerImpl", cCfg, serviceUrl);
     }
 
     @Override
