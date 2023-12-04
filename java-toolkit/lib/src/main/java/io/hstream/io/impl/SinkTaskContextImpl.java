@@ -55,7 +55,9 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     public void init(HRecord config, KvStore kv) {
         this.cfg = config;
         this.kv = kv;
-        sinkOffsetsManager = new SinkOffsetsManagerImpl(kv, "SinkOffsetsManagerImpl");
+        var cCfg = cfg.getHRecord("connector");
+        var serviceUrl = cfg.getHRecord("hstream").getString("serviceUrl");
+        sinkOffsetsManager = new SinkOffsetsManagerImpl(kv, "SinkOffsetsManagerImpl", cCfg, serviceUrl);
     }
 
     @Override
@@ -182,11 +184,11 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                 handler.accept(batch);
                 return;
             } catch (ConnectorExceptions.FailFastError e){
-                log.warn("fail fast error:{}", e.getMessage());
+                log.warn("fail fast error, ", e);
                 fail();
                 throw e;
             } catch (Throwable e) {
-                log.warn("delivery record failed:{}, tried:{}", e.getMessage(), count);
+                log.warn("delivery record failed, tried:{}, ", count, e);
                 if (!retryStrategy.showRetry(batch.getShardId(), e)) {
                     if (sinkSkipStrategy.trySkipBatch(batch, e.getMessage())) {
                         return;
