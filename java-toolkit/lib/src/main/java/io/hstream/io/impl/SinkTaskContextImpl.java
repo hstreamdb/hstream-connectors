@@ -31,6 +31,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     SinkOffsetsManager sinkOffsetsManager;
     SinkSkipStrategy sinkSkipStrategy;
     SinkRetryStrategy retryStrategy;
+    String serviceUrl;
 
     @Override
     public KvStore getKvStore() {
@@ -56,7 +57,10 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         this.cfg = config;
         this.kv = kv;
         var cCfg = cfg.getHRecord("connector");
-        var serviceUrl = cfg.getHRecord("hstream").getString("serviceUrl");
+        serviceUrl = cfg.getHRecord("hstream").getString("serviceUrl");
+        if (System.getenv("HSTREAM_SERVICE_URL") != null) {
+            serviceUrl = System.getenv("HSTREAM_SERVICE_URL");
+        }
         sinkOffsetsManager = new SinkOffsetsManagerImpl(kv, "SinkOffsetsManagerImpl", cCfg, serviceUrl);
     }
 
@@ -72,12 +76,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
 
     @SneakyThrows
     public void handleInternal(Consumer<SinkRecordBatch> handler, boolean parallel) {
-        var hsCfg = cfg.getHRecord("hstream");
         var cCfg = cfg.getHRecord("connector");
-        var serviceUrl = hsCfg.getString("serviceUrl");
-        if (System.getenv("HSTREAM_SERVICE_URL") != null) {
-            serviceUrl = System.getenv("HSTREAM_SERVICE_URL");
-        }
         client = HStreamClient.builder().serviceUrl(serviceUrl).build();
         var errorRecorder = new ErrorRecorder(client, cCfg);
         retryStrategy = new SinkRetryStrategy(cCfg);
