@@ -37,7 +37,7 @@ public class ErrorSpec implements SpecGroup {
         String uiShowName = "Skip Strategy";
         String description = "skip strategy if records is unwritable";
         String type = "string";
-        JsonNode defaultValue = new TextNode("SkipAll");
+        JsonNode defaultValue = new TextNode("NeverSkip");
         List<JsonNode> enumValues = List.of(new TextNode(SkipStrategyEnum.SkipAll.name()),
                 new TextNode(SkipStrategyEnum.NeverSkip.name()),
                 new TextNode(SkipStrategyEnum.SkipSome.name()));

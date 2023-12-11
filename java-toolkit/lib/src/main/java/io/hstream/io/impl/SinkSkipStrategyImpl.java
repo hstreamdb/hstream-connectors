@@ -16,7 +16,7 @@ import static io.hstream.io.impl.spec.ErrorSpec.*;
 @Slf4j
 public class SinkSkipStrategyImpl implements SinkSkipStrategy {
     // skip
-    int skipCount = -1;
+    int skipCount = 0;
     AtomicInteger skipped = new AtomicInteger(0);
     HStreamClient client;
     ErrorRecorder errorRecorder;
