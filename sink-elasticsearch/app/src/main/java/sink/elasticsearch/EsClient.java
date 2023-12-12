@@ -72,6 +72,7 @@ public class EsClient {
                     .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
                             .setKeepAliveStrategy(connectionConfig.getKeepAliveStrategy())
                             .setConnectionReuseStrategy(connectionConfig.getConnectionReuseStrategy())
+                            .setMaxConnTotal(connectionConfig.getMaxConnTotal())
                             .setSSLContext(sslContext)
                             .setDefaultCredentialsProvider(connectionConfig.getCredentialsProvider()))
                     .build();
@@ -80,6 +81,7 @@ public class EsClient {
                     .setHttpClientConfigCallback(httpAsyncClientBuilder -> httpAsyncClientBuilder
                             .setKeepAliveStrategy(connectionConfig.getKeepAliveStrategy())
                             .setConnectionReuseStrategy(connectionConfig.getConnectionReuseStrategy())
+                            .setMaxConnTotal(connectionConfig.getMaxConnTotal())
                             .setDefaultCredentialsProvider(connectionConfig.getCredentialsProvider()))
                     .build();
         }

@@ -29,6 +29,7 @@ public class ConnectionConfig {
     CredentialsProvider credentialsProvider;
     Long keepAliveDurationMs;
     Boolean reuseConnection;
+    int maxConnTotal = 0;
 
     public ConnectionConfig(HRecord cfg) {
         scheme = cfg.getString("scheme");
@@ -54,6 +55,9 @@ public class ConnectionConfig {
         }
         if (cfg.contains("reuseConnection")) {
             reuseConnection = cfg.getBoolean("reuseConnection");
+        }
+        if (cfg.contains("maxConnTotal")) {
+            maxConnTotal = cfg.getInt("maxConnTotal");
         }
     }
 
