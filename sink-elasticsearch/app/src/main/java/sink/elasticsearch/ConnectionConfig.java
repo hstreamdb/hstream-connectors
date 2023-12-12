@@ -4,12 +4,13 @@ import io.hstream.HRecord;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.ConnectionReuseStrategy;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.SystemDefaultCredentialsProvider;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,6 +27,9 @@ public class ConnectionConfig {
     String caPath;
     String auth = "none";
     CredentialsProvider credentialsProvider;
+    Long keepAliveDurationMs;
+    Boolean reuseConnection;
+    int maxConnTotal = 0;
 
     public ConnectionConfig(HRecord cfg) {
         scheme = cfg.getString("scheme");
@@ -46,6 +50,15 @@ public class ConnectionConfig {
             credentialsProvider.setCredentials(AuthScope.ANY,
                     new UsernamePasswordCredentials(cfg.getString("username"), cfg.getString("password")));
         }
+        if (cfg.contains("keepAliveDurationMs")) {
+            keepAliveDurationMs = cfg.getLong("keepAliveDurationMs");
+        }
+        if (cfg.contains("reuseConnection")) {
+            reuseConnection = cfg.getBoolean("reuseConnection");
+        }
+        if (cfg.contains("maxConnTotal")) {
+            maxConnTotal = cfg.getInt("maxConnTotal");
+        }
     }
 
     @SneakyThrows
@@ -58,6 +71,20 @@ public class ConnectionConfig {
     @SneakyThrows
     public CredentialsProvider getCredentialsProvider() {
         return credentialsProvider;
+    }
+
+    public ConnectionKeepAliveStrategy getKeepAliveStrategy() {
+        if (keepAliveDurationMs == null) {
+            return null;
+        }
+        return (x, y) -> keepAliveDurationMs;
+    }
+
+    public ConnectionReuseStrategy getConnectionReuseStrategy() {
+        if (reuseConnection == null) {
+            return null;
+        }
+        return (x, y) -> reuseConnection;
     }
 
     @SneakyThrows

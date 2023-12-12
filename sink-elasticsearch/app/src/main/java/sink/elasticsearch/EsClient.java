@@ -70,12 +70,18 @@ public class EsClient {
             final SSLContext sslContext = sslContextBuilder.build();
             restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0]))
                     .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                            .setKeepAliveStrategy(connectionConfig.getKeepAliveStrategy())
+                            .setConnectionReuseStrategy(connectionConfig.getConnectionReuseStrategy())
+                            .setMaxConnTotal(connectionConfig.getMaxConnTotal())
                             .setSSLContext(sslContext)
                             .setDefaultCredentialsProvider(connectionConfig.getCredentialsProvider()))
                     .build();
         } else {
             restClient = RestClient.builder(connectionConfig.toHttpHosts().toArray(new HttpHost[0]))
                     .setHttpClientConfigCallback(httpAsyncClientBuilder -> httpAsyncClientBuilder
+                            .setKeepAliveStrategy(connectionConfig.getKeepAliveStrategy())
+                            .setConnectionReuseStrategy(connectionConfig.getConnectionReuseStrategy())
+                            .setMaxConnTotal(connectionConfig.getMaxConnTotal())
                             .setDefaultCredentialsProvider(connectionConfig.getCredentialsProvider()))
                     .build();
         }
