@@ -22,6 +22,7 @@ public class GeneratorSourceTask implements SourceTask {
     KvStore kv;
     String stream;
     Supplier<Record> generator;
+    String keyField;
 
     @SneakyThrows
     @Override
@@ -35,33 +36,19 @@ public class GeneratorSourceTask implements SourceTask {
         if (cfg.contains("schema")) {
             schema = cfg.getString("schema");
         }
-        log.info("schema:{}", schema);
+        if (cfg.contains("keyField")) {
+            keyField = cfg.getString("keyField");
+        }
+        log.info("schema:{}, keyField:{}", schema, keyField);
         assert batchSize > 0;
         assert period > 0;
-        var dataType = DataType.JSON;
-        if (cfg.contains("type") && cfg.getString("type").equalsIgnoreCase("sequence")) {
-            dataType = DataType.SEQUENCE;
-        }
-        var seq = 0;
-        if (dataType.equals(DataType.SEQUENCE)) {
-            var seqStr = kv.get("sequence").get();
-            if (seqStr != null && !seqStr.isEmpty()) {
-                seq = Integer.parseInt(seqStr);
-            }
-            generator = getSequenceGenerator(seq);
-        } else {
-            generator = getJsonGeneratorFromSchema(schema);
-        }
+        generator = getJsonGeneratorFromSchema(schema, keyField);
         while (true) {
             if (needStop) {
                 return;
             }
             Thread.sleep(period * 1000L);
             writeRecords(batchSize);
-            if (dataType.equals(DataType.SEQUENCE)) {
-                seq += batchSize;
-                kv.set("sequence", String.valueOf(seq));
-            }
         }
     }
 
@@ -77,24 +64,16 @@ public class GeneratorSourceTask implements SourceTask {
     }
 
     @SneakyThrows
-    Supplier<Record> getJsonGeneratorFromSchema(String schemaStr) {
+    Supplier<Record> getJsonGeneratorFromSchema(String schemaStr, String keyField) {
         var jsonFaker = new JsonFaker(schemaStr);
         return () -> {
             var jsonData = jsonFaker.generate();
-            return Record.newBuilder().hRecord(HRecord.newBuilder().merge(jsonData).build()).build();
-        };
-    }
-
-    Supplier<Record> getSequenceGenerator(int start) {
-        AtomicInteger id = new AtomicInteger(start);
-        return () -> {
-            var jsonData = mapper.createObjectNode()
-                    .put("id", id.getAndIncrement())
-                    .put("randomInt", rnd.nextInt(1000))
-                    .put("randomSmallInt", rnd.nextInt(10))
-                    .put("randomDate", Instant.now().toString())
-                    .toString();
-            return Record.newBuilder().hRecord(HRecord.newBuilder().merge(jsonData).build()).build();
+            var hRecord = HRecord.newBuilder().merge(jsonData).build();
+            String key = null;
+            if (keyField != null) {
+                key = Utils.pbValueToObject(hRecord.getDelegate().getFieldsMap().get(keyField)).toString();
+            }
+            return Record.newBuilder().partitionKey(key).hRecord(hRecord).build();
         };
     }
 

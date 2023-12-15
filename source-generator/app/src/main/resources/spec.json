@@ -5,28 +5,32 @@
   "type": "object",
   "properties": {
     "stream": {
-      "title": "stream",
+      "ui:showName": "stream",
       "description": "result stream",
       "type": "string"
     },
+    "keyField": {
+      "ui:showName": "key field name",
+      "type": "string"
+    },
     "schema": {
-      "title": "schema",
+      "ui:showName": "schema",
       "type": "string",
       "default": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"k1\": {\n      \"type\": \"integer\",\n      \"minimum\": 10,\n      \"maximum\": 20\n    },\n    \"v1\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"k1\", \"v1\"]\n}",
       "ui:type": "editor",
       "description": "json schema for generating random data"
     },
     "batchSize": {
-      "title": "batchSize",
-      "description": "batch size",
+      "ui:showName": "batchSize(records)",
+      "description": "write records/per interval",
       "type": "integer",
       "default": 1,
       "minimum": 1,
       "maximum": 10
     },
     "period": {
-      "title": "period",
-      "description": "write period",
+      "ui:showName": "period(Seconds)",
+      "description": "write period(interval), unit:seconds",
       "type": "integer",
       "default": 5,
       "minimum": 1,
@@ -34,5 +38,5 @@
     }
   },
   "required": ["stream", "batchSize", "period"],
-  "ui:order": ["stream", "schema", "batchSize", "period"]
+  "ui:order": ["stream", "keyField", "schema", "batchSize", "period"]
 }
