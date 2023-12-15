@@ -8,7 +8,7 @@ Toolkits are libraries for developers to create new connector plugins,
 now we have implemented the [java-toolkit](java-toolkit),
 based on java-toolkit,
 you only need to implement a couple of interfaces to create a connector plugin
-instead of caring about offset, batch, protocol messages processing ,etc.
+instead of caring about offset, batch, protocol messages processing, etc.
 
 ## source-debezium
 Debezium is a great CDC tool for databases,
