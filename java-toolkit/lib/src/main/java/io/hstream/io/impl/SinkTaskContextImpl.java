@@ -111,7 +111,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                     if (cCfg.contains("reader.max.retry")) {
                         maxRetry = cCfg.getInt("reader.max.retry");
                     }
-                    var reader = getReader(stream, shard.getShardId(), cCfg);
+                    Reader reader = null;
                     while (true) {
                         try {
                             if (reader == null) {
