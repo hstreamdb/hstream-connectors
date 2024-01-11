@@ -77,7 +77,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     @SneakyThrows
     public void handleInternal(Consumer<SinkRecordBatch> handler, boolean parallel) {
         var cCfg = cfg.getHRecord("connector");
-        client = HStreamClient.builder().serviceUrl(serviceUrl).build();
+        client = HStreamClient.builder().serviceUrl(serviceUrl).requestTimeoutMs(60000).build();
         var errorRecorder = new ErrorRecorder(client, cCfg);
         retryStrategy = new SinkRetryStrategy(cCfg);
         sinkSkipStrategy = new SinkSkipStrategyImpl(cCfg, errorRecorder);
@@ -108,11 +108,17 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                     BufferedSender sender = new BufferedSender(stream, shard.getShardId(), cCfg, timeFlushExecutor, innerHandler);
                     int retry = 0;
                     int maxRetry = 3;
+                    if (cCfg.contains("reader.max.retry")) {
+                        maxRetry = cCfg.getInt("reader.max.retry");
+                    }
                     var reader = getReader(stream, shard.getShardId(), cCfg);
                     while (true) {
                         try {
+                            if (reader == null) {
+                                reader = getReader(stream, shard.getShardId(), cCfg);
+                            }
                             var records = reader.read(1).join();
-                            if (records.size() > 0) {
+                            if (!records.isEmpty()) {
                                 var sinkRecords = records.stream().map(this::makeSinkRecord).collect(Collectors.toList());
                                 sender.put(sinkRecords);
                             }
@@ -124,7 +130,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                                 throw new RuntimeException("retry failed");
                             }
                             Thread.sleep(retry * 3000L);
-                            reader = getReader(stream, shard.getShardId(), cCfg);
+                            reader = null;
                         }
                     }
                 } catch (Exception e) {
