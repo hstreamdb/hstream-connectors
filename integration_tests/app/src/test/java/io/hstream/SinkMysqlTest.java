@@ -4,17 +4,13 @@ import io.hstream.external.Mysql;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
 
-import static io.hstream.Utils.pullImage;
-
 @Slf4j
 public class SinkMysqlTest {
   HStreamHelper helper;
   Mysql mysql;
 
   @BeforeEach
-  @Timeout(300)
   void setup(TestInfo testInfo) throws Exception {
-    pullImage("hstreamdb/sink-mysql:latest");
     helper = new HStreamHelper(testInfo);
     mysql = new Mysql();
     log.info("set up environment");
