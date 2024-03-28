@@ -22,9 +22,11 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Assertions;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
+import org.testcontainers.utility.DockerImageName;
 
 @Slf4j
 public class Utils {
@@ -318,5 +320,10 @@ public class Utils {
       helper.client.deleteConnector(connectorName);
     }
     return connector;
+  }
+
+  public static void pullImage(String imageName) throws InterruptedException {
+    DockerImageName name = DockerImageName.parse(imageName);
+    DockerClientFactory.instance().client().pullImageCmd(name.asCanonicalNameString()).start().awaitCompletion(3, TimeUnit.MINUTES);
   }
 }
