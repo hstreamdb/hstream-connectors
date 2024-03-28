@@ -302,6 +302,7 @@ public class Utils {
                 .target(sink.getName())
                 .config(sink.getCreateConnectorConfig(streamName, table))
                 .build());
+    log.info("create connector:{} success", connector.getName());
     Utils.runUntil(10, 3, () -> sink.readDataSet(table).size() >= count);
     // wait and re-check
     try {
