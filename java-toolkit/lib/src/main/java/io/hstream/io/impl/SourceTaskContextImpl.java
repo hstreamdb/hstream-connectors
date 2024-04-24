@@ -7,12 +7,15 @@ import io.hstream.io.KvStore;
 import io.hstream.io.ReportMessage;
 import io.hstream.io.SourceRecord;
 import io.hstream.io.SourceTaskContext;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 public class SourceTaskContextImpl implements SourceTaskContext {
     HStreamClient client;
     Map<String, BufferedProducer> producers = new HashMap<>();
@@ -50,6 +53,8 @@ public class SourceTaskContextImpl implements SourceTaskContext {
             if (e == null) {
                 deliveredRecords.incrementAndGet();
                 deliveredBytes.addAndGet(recordSize);
+            } else {
+                log.error("send record error:{}", e.getMessage());
             }
         });
     }

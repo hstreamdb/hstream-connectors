@@ -23,6 +23,7 @@ public class JsonFaker {
                 .command("/usr/bin/bash", "-c", "generate-json schema.json output.json")
                 .inheritIO()
                 .start();
+        // FIXME：what if the process doesn't finish in 3 seconds?
         process.waitFor(3, TimeUnit.SECONDS);
     }
 
