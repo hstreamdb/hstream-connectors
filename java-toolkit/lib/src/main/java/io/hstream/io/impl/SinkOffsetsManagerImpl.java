@@ -9,27 +9,28 @@ import io.hstream.io.SinkOffsetsManager;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
     KvStore kvStore;
     String offsetsKey;
     ConcurrentHashMap<Long, String> offsets = new ConcurrentHashMap<>();
-    AtomicReference<HashMap<Long, String>> storedOffsets = new AtomicReference<>(new HashMap<>());
     static ObjectMapper mapper = new ObjectMapper();
-    AtomicInteger bufferState = new AtomicInteger(0);
     int flushIntervalSec = 1;
     int trimIntervalSec = -1;
     HStreamClient client;
     String stream;
+    // Offsets have been updated and need to commit
+    private final AtomicBoolean offsetsUpdated = new AtomicBoolean(false);
+    private final ScheduledExecutorService trimExecutor =  Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService offsetCommitExecutor = Executors.newSingleThreadScheduledExecutor();
+    // Records have been trimmed
+    private final ConcurrentHashMap<Long, String> recordsTrimmed = new ConcurrentHashMap<>();
+    // Offsets have been committed to the kv store
+    private final ConcurrentHashMap<Long, String> storedOffsets = new ConcurrentHashMap<>();
 
     SinkOffsetsManagerImpl(KvStore kvStore, String prefix, HRecord cfg, String serviceUrl) {
         this.kvStore = kvStore;
@@ -37,8 +38,11 @@ public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
         if (cfg.contains("offset.flush.interval.seconds")) {
             flushIntervalSec = cfg.getInt("offset.flush.interval.seconds");
         }
+
         init();
-        new Thread(this::storeOffsets).start();
+
+        offsetCommitExecutor.scheduleAtFixedRate(this::storeOffsets, flushIntervalSec, flushIntervalSec, TimeUnit.SECONDS);
+
         if (cfg.contains("offset.trim.interval.seconds")) {
             trimIntervalSec = cfg.getInt("offset.trim.interval.seconds");
         }
@@ -49,7 +53,7 @@ public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
                     .serviceUrl(serviceUrl)
                     .requestTimeoutMs(300000)
                     .build();
-            new Thread(this::trimOffsets).start();
+            trimExecutor.scheduleAtFixedRate(this::trimOffsets, trimIntervalSec, trimIntervalSec, TimeUnit.SECONDS);
         }
     }
 
@@ -58,64 +62,66 @@ public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
         var offsetsStr = kvStore.get(offsetsKey).get();
         if (offsetsStr != null && !offsetsStr.isEmpty()) {
             var stored = mapper.readValue(offsetsStr, new TypeReference<HashMap<Long, String>>(){});
-            storedOffsets.set(stored);
+            storedOffsets.putAll(stored);
             offsets.putAll(stored);
+            recordsTrimmed.putAll(stored);
         }
     }
 
     void trimOffsets() {
-        var trimmed = new HashMap<>(storedOffsets.get());
-        while (true) {
-            try {
-                Thread.sleep(trimIntervalSec * 1000L);
-                var stored = new HashMap<>(storedOffsets.get());
-                var offsets = new HashMap<Long, String>();
-                for (var entry : stored.entrySet()) {
-                    if (entry.getValue().equals(trimmed.getOrDefault(entry.getKey(), null))) {
-                        continue;
-                    }
-                    offsets.put(entry.getKey(), entry.getValue());
-                }
-                if (!offsets.isEmpty()) {
-                    log.info("trimming offsets:{}", offsets);
-                    client.trimShards(stream, new ArrayList<>(offsets.values()));
-                    trimmed.putAll(offsets);
-                }
-            } catch (Throwable e) {
-                log.info("Trim Offsets failed, ", e);
+        // compare `storedOffsets` and `trimmedRecords`, if the value of the key has been trimmed, skip it, otherwise
+        // add the key and value to `recordsNeedTrim`
+        var recordsNeedTrim = new HashMap<Long, String>();
+        for (var entry : storedOffsets.entrySet()) {
+            if(entry.getValue().equals(recordsTrimmed.getOrDefault(entry.getKey(), null))) {
+                continue;
             }
+            recordsNeedTrim.put(entry.getKey(), entry.getValue());
+        }
+
+        if (recordsNeedTrim.isEmpty()) {
+            return;
+        }
+
+        log.info("trimming offsets:{}", recordsNeedTrim);
+        try {
+            client.trimShards(stream, new ArrayList<>(recordsNeedTrim.values()));
+            recordsTrimmed.putAll(recordsNeedTrim);
+        } catch (Throwable e) {
+            log.error("trim offsets failed, ", e);
         }
     }
 
     @Override
     public void update(long shardId, String recordId) {
         offsets.compute(shardId, (k, v) -> recordId);
-        bufferState.set(0);
+        offsetsUpdated.set(true);
     }
 
-    @SneakyThrows
     void storeOffsets() {
-        while (true) {
-            try {
-                Thread.sleep(flushIntervalSec * 1000L);
-                if (bufferState.get() == 2) {
-                    continue;
-                }
+        try {
+            if (offsetsUpdated.compareAndExchange(true, false)) {
                 var stored = new HashMap<>(offsets);
                 kvStore.set(offsetsKey, mapper.writeValueAsString(stored)).get();
-                storedOffsets.set(stored);
-                bufferState.incrementAndGet();
-            } catch (Throwable e) {
-                log.info("store Offsets failed, ", e);
+                storedOffsets.putAll(stored);
             }
+        } catch (Throwable e) {
+            log.info("store Offsets failed, ", e);
         }
     }
 
     @Override
     public Map<Long, String> getStoredOffsets() {
-        return new HashMap<>(storedOffsets.get());
+        return new HashMap<>(storedOffsets);
     }
 
     @Override
-    public void close() {}
+    public void close() {
+        trimExecutor.shutdown();
+        offsetCommitExecutor.shutdown();
+
+        // commit offsets and do final trim before close
+        storeOffsets();
+        trimOffsets();
+    }
 }
