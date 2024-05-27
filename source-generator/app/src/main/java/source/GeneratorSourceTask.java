@@ -8,9 +8,7 @@ import io.hstream.io.*;
 import io.hstream.io.impl.SourceTaskContextImpl;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import java.time.Instant;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -53,8 +51,15 @@ public class GeneratorSourceTask implements SourceTask {
     }
 
     void writeRecords(int batchSize) {
+        SourceRecord sourceRecord;
         for (int i = 0; i < batchSize; i++) {
-            ctx.send(new SourceRecord(stream, generator.get()));
+            try {
+                sourceRecord = new SourceRecord(stream, generator.get());
+            } catch (Exception e) {
+                log.error("generate source record error:{}", e.getMessage());
+                continue;
+            }
+            ctx.send(sourceRecord);
         }
     }
 
@@ -71,7 +76,13 @@ public class GeneratorSourceTask implements SourceTask {
             var hRecord = HRecord.newBuilder().merge(jsonData).build();
             String key = null;
             if (keyField != null) {
-                key = Utils.pbValueToObject(hRecord.getDelegate().getFieldsMap().get(keyField)).toString();
+                // If jsonData return empty, then hRecord will not contains a keyField. In this case, use a default key.
+                try {
+                    key = Utils.pbValueToObject(hRecord.getDelegate().getFieldsMap().get(keyField)).toString();
+                } catch (Exception e) {
+                    log.error("get keyField error:{}", e.getMessage());
+                    key = "defaultKey";
+                }
             }
             return Record.newBuilder().partitionKey(key).hRecord(hRecord).build();
         };
