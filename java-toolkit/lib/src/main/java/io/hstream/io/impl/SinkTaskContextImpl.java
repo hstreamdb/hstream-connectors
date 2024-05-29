@@ -124,13 +124,16 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                             }
                             retry = 0;
                         } catch (Exception e) {
-                            log.error("read records failed, retry:{}, ", retry, e);
+                            log.error("read records from shard {} failed, retry:{}, ", shard.getShardId(), retry, e);
                             retry++;
                             if (retry > maxRetry) {
                                 throw new RuntimeException("retry failed");
                             }
                             Thread.sleep(retry * 3000L);
-                            reader = null;
+                            if (reader != null) {
+                                reader.close();
+                                reader = null;
+                            }
                         }
                     }
                 } catch (Exception e) {
