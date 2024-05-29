@@ -31,7 +31,7 @@ jobs:
           ./gradlew test --rerun-tasks --info --fail-fast
 
       - uses: actions/upload-artifact@v2
-        if: ${{ success() }} || ${{ failure() }}
+        if: ${{ failure() }}
         with:
           name: logs
           path: |

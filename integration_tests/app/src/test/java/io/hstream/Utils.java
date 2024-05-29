@@ -238,7 +238,7 @@ public class Utils {
     var result = helper.client.listConnectors();
     Assertions.assertEquals(result.size(), 1);
     // check the stream
-    Utils.runUntil(10, 3, () -> helper.client.listStreams().size() > 0);
+    Utils.runUntil(10, 3, () -> !helper.client.listStreams().isEmpty());
     var res = Utils.readStream(helper.client, stream, 10, 30);
     Assertions.assertEquals(10, res.size());
     helper.client.deleteConnector(connectorName);

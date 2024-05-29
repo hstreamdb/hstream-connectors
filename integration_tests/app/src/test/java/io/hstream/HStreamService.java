@@ -112,6 +112,7 @@ public class HStreamService {
                 + " --store-admin-port "
                 + hstoreAdminPort
                 + " --log-level debug"
+                + " --log-flush-immediately"
                 + latestImages
                 + extraImages
                 + " --log-with-color"

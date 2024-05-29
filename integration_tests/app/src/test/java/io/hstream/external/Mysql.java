@@ -18,7 +18,7 @@ public class Mysql extends Jdbc {
   public Mysql() {
     String password = "password";
     service =
-        new GenericContainer<>("mysql")
+        new GenericContainer<>("mysql:8.0")
             .withEnv("MYSQL_ROOT_PASSWORD", password)
             .withEnv("MYSQL_DATABASE", db)
             .withExposedPorts(3306)
