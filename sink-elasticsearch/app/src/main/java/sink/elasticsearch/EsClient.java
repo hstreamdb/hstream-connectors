@@ -139,14 +139,15 @@ public class EsClient {
         try {
             result = client.bulk(br.build());
         } catch (Exception e) {
-            log.warn("bulk records failed:{}", e.getMessage());
+//            log.error("send es bulk records failed:{}", e.getMessage());
             reset();
             throw e;
         }
+
         if (result != null && result.errors()) {
-            log.warn("bulk response error");
+            log.error("send es bulk records response errors: ");
             for (var error : result.items()) {
-                log.warn("bulk error: {}", error);
+                log.error("bulk error: {}", error);
             }
             var reason = result.items().get(0).toString();
             throw new ConnectorExceptions.InvalidBatchError(batch, reason);

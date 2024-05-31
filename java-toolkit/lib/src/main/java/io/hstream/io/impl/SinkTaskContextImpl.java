@@ -102,6 +102,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
             updateMetrics(batch.getSinkRecords());
             retryStrategy.resetRetry(batch.getShardId());
         };
+
         for (var shard : shards) {
             new Thread(() -> {
                 try {
@@ -124,14 +125,18 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                             }
                             retry = 0;
                         } catch (Exception e) {
-                            log.error("read records from shard {} failed, retry:{}, ", shard.getShardId(), retry, e);
+                            log.error("read records from shard {} failed, retried: {}, error: ", shard.getShardId(), retry, e);
                             retry++;
                             if (retry > maxRetry) {
                                 throw new RuntimeException("retry failed");
                             }
                             Thread.sleep(retry * 3000L);
+
                             if (reader != null) {
-                                reader.close();
+                                try {
+                                    reader.close();
+                                } catch (Exception ignored) {
+                                }
                                 reader = null;
                             }
                         }
@@ -174,7 +179,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
                 case LATEST:
                     return new StreamShardOffset(StreamShardOffset.SpecialOffset.LATEST);
                 default:
-                    log.warn("unknown from offset:" + cfg.getString(FROM_OFFSET_NAME));
+                    log.error("unknown from offset: {}", cfg.getString(FROM_OFFSET_NAME));
                     throw new RuntimeException("UNKNOWN from offset");
             }
         } else {
@@ -187,26 +192,30 @@ public class SinkTaskContextImpl implements SinkTaskContext {
         int retryInterval = 5;
         int count = 0;
         while (true) {
-            count++;
             try {
                 handler.accept(batch);
                 return;
             } catch (ConnectorExceptions.FailFastError e){
-                log.warn("fail fast error, ", e);
+                log.error("fail fast error, ", e);
                 fail();
                 throw e;
             } catch (Throwable e) {
-                log.warn("delivery record failed, tried:{}, ", count, e);
                 if (!retryStrategy.showRetry(batch.getShardId(), e)) {
                     if (sinkSkipStrategy.trySkipBatch(batch, e.getMessage())) {
+                        log.warn("delivery record failed, skip. error: {}", e.getMessage());
                         return;
                     } else {
+                        log.error("delivery record failed without retry. ", e);
                         fail();
                         throw e;
                     }
                 }
-                log.warn("retrying, retry count:{}", count);
-                Thread.sleep(retryInterval * count * 1000L);
+
+                count++;
+                // The maximum retry interval does not exceed 60 seconds.
+                var delay = Math.min(60, retryInterval * count);
+                log.warn("delivery record failed, retrying for the {}th time in {}s, ", count, delay);
+                Thread.sleep(delay * 1000L);
             }
         }
     }
@@ -214,7 +223,7 @@ public class SinkTaskContextImpl implements SinkTaskContext {
     void fail() {
         // failed
         latch.countDown();
-        log.info("connector failed");
+        log.error("connector failed");
     }
 
     void updateMetrics(List<SinkRecord> records) {

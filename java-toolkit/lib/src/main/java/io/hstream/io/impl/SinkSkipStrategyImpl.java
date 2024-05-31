@@ -52,7 +52,7 @@ public class SinkSkipStrategyImpl implements SinkSkipStrategy {
 
     @Override
     public boolean trySkipBatch(SinkRecordBatch batch, String reason) {
-        log.warn("handle skip batch:{}", reason);
+//        log.warn("handle skip batch:{}", reason);
         var result = showSkip(batch.getSinkRecords().size());
         if (result) {
             errorRecorder.recordError(new ConnectorExceptions.InvalidBatchError(batch, reason));
