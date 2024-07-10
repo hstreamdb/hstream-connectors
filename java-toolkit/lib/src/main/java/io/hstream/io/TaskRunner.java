@@ -120,8 +120,7 @@ public class TaskRunner {
                         st.run(connectorConfig, stc);
                     }
                 } catch (Throwable e) {
-                    log.info("unexpected error when running connector:{}", e.getMessage());
-                    e.printStackTrace();
+                    log.error("unexpected error when running connector: ", e);
                     System.exit(1);
                 }
                 break;
@@ -135,7 +134,7 @@ public class TaskRunner {
         // check schema
         var schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(task.spec());
         var errors = schema.validate(cfgNode.get("connector"));
-        if (errors.size() != 0) {
+        if (!errors.isEmpty()) {
             return CheckResult.builder()
                     .result(false)
                     .type(CheckResult.CheckResultType.CONFIG)

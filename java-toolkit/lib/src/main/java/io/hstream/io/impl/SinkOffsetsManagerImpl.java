@@ -88,7 +88,7 @@ public class SinkOffsetsManagerImpl implements SinkOffsetsManager {
             client.trimShards(stream, new ArrayList<>(recordsNeedTrim.values()));
             recordsTrimmed.putAll(recordsNeedTrim);
         } catch (Throwable e) {
-            log.error("trim offsets failed, ", e);
+            log.error("trim offsets failed: {}", e.getMessage());
         }
     }
 
