@@ -111,7 +111,7 @@ public class LasSinkTask implements SinkTask {
             var lasRecord = LasRecord.fromSinkRecord(sinkRecord);
             // lasRecord should be like: {"key": {"id": 0, ...}, "value": {"id": 0, "name": "...", ...} } ,
             // and this format would be compatible with debezium sources.
-            var valueRecord = (Map<String,Object>)lasRecord.getRecord().get("value");
+            Map<String, Object> valueRecord = (Map<String,Object>)lasRecord.getRecord().get("value");
             if(valueRecord == null) {
                 valueRecord= lasRecord.getRecord();
             }
