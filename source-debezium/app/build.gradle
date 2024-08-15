@@ -28,7 +28,7 @@ dependencies {
     implementation 'com.google.guava:guava:30.1.1-jre'
 
     implementation 'io.hstream:java-toolkit:0.1.0-SNAPSHOT'
-    implementation 'io.hstream:hstreamdb-java:0.17.0-SNAPSHOT'
+    implementation 'io.hstream:hstreamdb-java:0.17.1-SNAPSHOT'
 
     compileOnly 'org.slf4j:slf4j-api:1.7.30'
     implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.17.0'

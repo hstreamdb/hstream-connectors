@@ -16,6 +16,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.bytedance.las.tunnel.ActionType.*;
 import static com.bytedance.las.tunnel.TunnelConfig.SERVICE_REGION;
@@ -104,8 +105,14 @@ public class LasSinkTask implements SinkTask {
     GenericData.Record convertRecord(SinkRecord sinkRecord) {
         try {
             var lasRecord = LasRecord.fromSinkRecord(sinkRecord);
+            // lasRecord should be like: {"key": {"id": 0, ...}, "value": {"id": 0, "name": "...", ...} } ,
+            // and this format would be compatible with debezium sources.
+            Map<String, Object> valueRecord = (Map<String,Object>)lasRecord.getRecord().get("value");
+            if(valueRecord == null) {
+                valueRecord= lasRecord.getRecord();
+            }
             var r = new GenericData.Record(schema);
-            for (var entry : lasRecord.getRecord().entrySet()) {
+            for (var entry : valueRecord.entrySet()) {
                 var value = entry.getValue();
                 if (schema.getField(entry.getKey()).schema().getType().equals(Schema.Type.INT)) {
                     var intValue = (int) value;
