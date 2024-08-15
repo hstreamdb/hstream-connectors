@@ -105,39 +105,33 @@ public class LasSinkTask implements SinkTask {
     void putValue(GenericData.Record record, Schema schema, String field, Object value) {
        Schema valueSchema = schema.getField(field).schema();
        switch (valueSchema.getType()) {
+           // for number type, it must be a double type.
            case INT:
-               int intValue = (int) value;
+               int intValue = ((Double) value).intValue();
                record.put(field, intValue);
                break;
            case LONG:
-               long longValue = (long) value;
+               long longValue = ((Double) value).longValue();
                record.put(field, longValue);
                break;
            case FLOAT:
-               float floatValue = (float) value;
+               float floatValue = ((Double) value).floatValue();
                record.put(field, floatValue);
                break;
-           case DOUBLE:
-               double doubleValue = (double) value;
-               record.put(field, doubleValue);
            case UNION:
                // by default, a field in LAS table is nullable, ant its schema is a union like [type, null].
                List<Schema> unionTypes = valueSchema.getTypes();
                if(unionTypes.stream().anyMatch(it -> it.getType().equals(Schema.Type.INT))) {
-                   int unionIntValue = (int) value;
+                   int unionIntValue = ((Double) value).intValue();
                    record.put(field, unionIntValue);
                    break;
                } else if (unionTypes.stream().anyMatch(it -> it.getType().equals(Schema.Type.LONG))) {
-                   long unionLongValue = (long) value;
+                   long unionLongValue = ((Double) value).longValue();
                    record.put(field, unionLongValue);
                    break;
                } else if (unionTypes.stream().anyMatch(it -> it.getType().equals(Schema.Type.FLOAT))) {
-                   float unionFloatValue = (float) value;
+                   float unionFloatValue = ((Double) value).floatValue();
                    record.put(field, unionFloatValue);
-                   break;
-               } else if (unionTypes.stream().anyMatch(it -> it.getType().equals(Schema.Type.DOUBLE))) {
-                   double unionDoubleValue = (double) value;
-                   record.put(field, unionDoubleValue);
                    break;
                }
            default:
