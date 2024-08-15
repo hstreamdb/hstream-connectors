@@ -45,7 +45,7 @@ dependencies {
     testImplementation 'org.jooq:jooq:3.16.7'
 
     // HStreamDB Java Client
-    testImplementation 'io.hstream:hstreamdb-java:0.16.0-SNAPSHOT'
+    testImplementation 'io.hstream:hstreamdb-java:0.17.1-SNAPSHOT'
 
     // lombok
     testCompileOnly 'org.projectlombok:lombok:1.18.24'
