@@ -93,12 +93,8 @@ public class LasSinkTask implements SinkTask {
                 // skip error record
                 continue;
             }
-            var valueRecord = targetRecord.get("value");
-            if(valueRecord == null) {
-                continue;
-            }
             if (extraTimeField != null) {
-                valueRecord.put(extraTimeField.getFieldName(), extraTimeField.getValue());
+                targetRecord.put(extraTimeField.getFieldName(), extraTimeField.getValue());
             }
             recordWriter.write(targetRecord);
         }
