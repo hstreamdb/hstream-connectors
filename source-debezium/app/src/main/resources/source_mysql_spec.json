@@ -42,8 +42,14 @@
       "description": "table name of the database",
       "type": "string",
       "examples": ["t1", "public.t1"]
+    },
+    "serverTimeZone": {
+      "title": "Server Time Zone",
+      "description": "configured server timezone",
+      "type": "string",
+      "examples": ["UTC"]
     }
   },
   "required": [ "stream", "host", "port", "user", "password", "database", "table" ],
-  "ui:order": [ "stream", "host", "port", "user", "password", "database", "table" ]
+  "ui:order": [ "stream", "host", "port", "user", "password", "serverTimeZone", "database", "table" ]
 }
