@@ -18,7 +18,7 @@ public class MysqlSourceTask extends RdbSourceTask {
             props.setProperty("table.include.list", dbname + "." + table);
         }
         if(cfg.contains("serverTimeZone")){
-            props.setProperty("database.connectionTimeZone ", cfg.getString("serverTimeZone"));
+            props.setProperty("database.connectionTimeZone", cfg.getString("serverTimeZone"));
         }
         super.run(cfg, ctx);
     }
