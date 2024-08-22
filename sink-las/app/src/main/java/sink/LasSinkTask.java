@@ -126,7 +126,11 @@ public class LasSinkTask implements SinkTask {
                record.put(field, floatValue);
                break;
            case DOUBLE:
-               record.put(field, value);
+               double doubleValue = (Double) value;
+               record.put(field, doubleValue);
+               break;
+           case STRING:
+               record.put(field, value.toString());
                break;
            case UNION:
                // by default, a field in a LAS table is nullable, ant its schema is a union like [type, null].
@@ -139,6 +143,7 @@ public class LasSinkTask implements SinkTask {
                } else {
                    putValue(record, unionTypes.get(1), field, value);
                }
+               break;
            default:
                throw new RuntimeException(String.format("Unsupported column type %s in a LAS table, we only allow string type and number types in a LAS table.", valueSchema.getType().toString()));
 
