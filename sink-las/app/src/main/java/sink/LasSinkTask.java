@@ -16,11 +16,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import com.google.common.base.Preconditions;
 
-
-
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static com.bytedance.las.tunnel.ActionType.*;
 import static com.bytedance.las.tunnel.TunnelConfig.SERVICE_REGION;
