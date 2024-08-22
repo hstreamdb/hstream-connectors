@@ -114,6 +114,10 @@ public class LasSinkTask implements SinkTask {
         } else {
             valueSchema = fieldSchema.get();
         }
+        if(value == null) {
+            record.put(fieldName, null);
+            return;
+        }
        switch (valueSchema.getType()) {
            // for number type, it must be a double type.
            case INT:
