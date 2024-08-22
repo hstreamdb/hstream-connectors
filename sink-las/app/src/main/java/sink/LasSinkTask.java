@@ -18,6 +18,7 @@ import com.google.common.base.Preconditions;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.bytedance.las.tunnel.ActionType.*;
 import static com.bytedance.las.tunnel.TunnelConfig.SERVICE_REGION;
@@ -103,11 +104,16 @@ public class LasSinkTask implements SinkTask {
         session.commit(List.of(0L), List.of(recordWriter.getAttemptId()));
     }
 
-    void putValue(GenericData.Record record, Schema schema, String field, Object value) {
-       String lowerFieldName = field.toLowerCase();
-       Schema.Field valueField = schema.getField(lowerFieldName);
-       Preconditions.checkNotNull(valueField, "Can not find the column named %s in the target LAS table", lowerFieldName);
-       Schema valueSchema = valueField.schema();
+    void putValue(GenericData.Record record, Schema tableSchema, String field, Object value, Optional<Schema> fieldSchema) {
+        Schema valueSchema;
+        if(fieldSchema.isEmpty()) {
+            String lowerFieldName = field.toLowerCase();
+            Schema.Field valueField = tableSchema.getField(lowerFieldName);
+            Preconditions.checkNotNull(valueField, "Can not find the column named %s in the target LAS table", lowerFieldName);
+            valueSchema = valueField.schema();
+        } else {
+            valueSchema = fieldSchema.get();
+        }
        switch (valueSchema.getType()) {
            // for number type, it must be a double type.
            case INT:
@@ -136,9 +142,9 @@ public class LasSinkTask implements SinkTask {
                Preconditions.checkArgument(unionTypes.get(1).getType().equals(Schema.Type.NULL) || unionTypes.get(0).getType().equals(Schema.Type.NULL), "Unsupported column schema %s in a LAS table", valueSchema.toString());
 
                if(unionTypes.get(1).getType().equals(Schema.Type.NULL)) {
-                   putValue(record, unionTypes.get(0), field, value);
+                   putValue(record, tableSchema, field, value, Optional.of(unionTypes.get(0)));
                } else {
-                   putValue(record, unionTypes.get(1), field, value);
+                   putValue(record, tableSchema, field, value, Optional.of(unionTypes.get(1)));
                }
                break;
            default:
@@ -157,11 +163,11 @@ public class LasSinkTask implements SinkTask {
             var r = new GenericData.Record(schema);
             if(valueRecord == null) {
                 // This represents a deleting row event from CDC source, for LAS sink, we set 'is_deleted' column to true.
-                putValue(r, schema, "is_deleted", "true");
+                putValue(r, schema, "is_deleted", "true", Optional.empty());
             } else {
                 for (var entry : valueRecord.entrySet()) {
                     var value = entry.getValue();
-                    putValue(r, schema, entry.getKey(), value);
+                    putValue(r, schema, entry.getKey(), value, Optional.empty());
                 }
             }
             return r;
