@@ -105,11 +105,11 @@ public class LasSinkTask implements SinkTask {
     }
 
     void putValue(GenericData.Record record, Schema tableSchema, String field, Object value, Optional<Schema> fieldSchema) {
+        String fieldName = field.toLowerCase();
         Schema valueSchema;
         if(fieldSchema.isEmpty()) {
-            String lowerFieldName = field.toLowerCase();
-            Schema.Field valueField = tableSchema.getField(lowerFieldName);
-            Preconditions.checkNotNull(valueField, "Can not find the column named %s in the target LAS table", lowerFieldName);
+            Schema.Field valueField = tableSchema.getField(fieldName);
+            Preconditions.checkNotNull(valueField, "Can not find the column named %s in the target LAS table", fieldName);
             valueSchema = valueField.schema();
         } else {
             valueSchema = fieldSchema.get();
@@ -118,33 +118,33 @@ public class LasSinkTask implements SinkTask {
            // for number type, it must be a double type.
            case INT:
                int intValue = ((Double) value).intValue();
-               record.put(field, intValue);
+               record.put(fieldName, intValue);
                break;
            case LONG:
                long longValue = ((Double) value).longValue();
-               record.put(field, longValue);
+               record.put(fieldName, longValue);
                break;
            case FLOAT:
                float floatValue = ((Double) value).floatValue();
-               record.put(field, floatValue);
+               record.put(fieldName, floatValue);
                break;
            case DOUBLE:
                double doubleValue = (Double) value;
-               record.put(field, doubleValue);
+               record.put(fieldName, doubleValue);
                break;
            case STRING:
-               record.put(field, value.toString());
+               record.put(fieldName, value.toString());
                break;
            case UNION:
-               // by default, a field in a LAS table is nullable, ant its schema is a union like [type, null].
+               // by default, a fieldName in a LAS table is nullable, ant its schema is a union like [type, null].
                List<Schema> unionTypes = valueSchema.getTypes();
                Preconditions.checkArgument(unionTypes.size() == 2, "Unsupported column schema %s in a LAS table", valueSchema.toString());
                Preconditions.checkArgument(unionTypes.get(1).getType().equals(Schema.Type.NULL) || unionTypes.get(0).getType().equals(Schema.Type.NULL), "Unsupported column schema %s in a LAS table", valueSchema.toString());
 
                if(unionTypes.get(1).getType().equals(Schema.Type.NULL)) {
-                   putValue(record, tableSchema, field, value, Optional.of(unionTypes.get(0)));
+                   putValue(record, tableSchema, fieldName, value, Optional.of(unionTypes.get(0)));
                } else {
-                   putValue(record, tableSchema, field, value, Optional.of(unionTypes.get(1)));
+                   putValue(record, tableSchema, fieldName, value, Optional.of(unionTypes.get(1)));
                }
                break;
            default:
