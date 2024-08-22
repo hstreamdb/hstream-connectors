@@ -16,8 +16,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import com.google.common.base.Preconditions;
 
-
-
 import java.util.List;
 import java.util.Map;
 
@@ -106,7 +104,10 @@ public class LasSinkTask implements SinkTask {
     }
 
     void putValue(GenericData.Record record, Schema schema, String field, Object value) {
-       Schema valueSchema = schema.getField(field).schema();
+       String lowerFieldName = field.toLowerCase();
+       Schema.Field valueField = schema.getField(lowerFieldName);
+       Preconditions.checkNotNull(valueField, "Can not find the column named %s in the target LAS table", lowerFieldName);
+       Schema valueSchema = valueField.schema();
        switch (valueSchema.getType()) {
            // for number type, it must be a double type.
            case INT:
@@ -121,24 +122,27 @@ public class LasSinkTask implements SinkTask {
                float floatValue = ((Double) value).floatValue();
                record.put(field, floatValue);
                break;
+           case DOUBLE:
+               double doubleValue = (Double) value;
+               record.put(field, doubleValue);
+               break;
+           case STRING:
+               record.put(field, value.toString());
+               break;
            case UNION:
-               // by default, a field in LAS table is nullable, ant its schema is a union like [type, null].
+               // by default, a field in a LAS table is nullable, ant its schema is a union like [type, null].
                List<Schema> unionTypes = valueSchema.getTypes();
-               if(unionTypes.stream().anyMatch(it -> it.getType().equals(Schema.Type.INT))) {
-                   int unionIntValue = ((Double) value).intValue();
-                   record.put(field, unionIntValue);
-                   break;
-               } else if (unionTypes.stream().anyMatch(it -> it.getType().equals(Schema.Type.LONG))) {
-                   long unionLongValue = ((Double) value).longValue();
-                   record.put(field, unionLongValue);
-                   break;
-               } else if (unionTypes.stream().anyMatch(it -> it.getType().equals(Schema.Type.FLOAT))) {
-                   float unionFloatValue = ((Double) value).floatValue();
-                   record.put(field, unionFloatValue);
-                   break;
+               Preconditions.checkArgument(unionTypes.size() == 2, "Unsupported column schema %s in a LAS table", valueSchema.toString());
+               Preconditions.checkArgument(unionTypes.get(1).getType().equals(Schema.Type.NULL) || unionTypes.get(0).getType().equals(Schema.Type.NULL), "Unsupported column schema %s in a LAS table", valueSchema.toString());
+
+               if(unionTypes.get(1).getType().equals(Schema.Type.NULL)) {
+                   putValue(record, unionTypes.get(0), field, value);
+               } else {
+                   putValue(record, unionTypes.get(1), field, value);
                }
+               break;
            default:
-               record.put(field, value);
+               throw new RuntimeException(String.format("Unsupported column type %s in a LAS table, we only allow string type and number types in a LAS table.", valueSchema.getType().toString()));
 
        }
     }
@@ -153,7 +157,7 @@ public class LasSinkTask implements SinkTask {
             var r = new GenericData.Record(schema);
             if(valueRecord == null) {
                 // This represents a deleting row event from CDC source, for LAS sink, we set 'is_deleted' column to true.
-                putValue(r, schema, "is_deleted", true);
+                putValue(r, schema, "is_deleted", "true");
             } else {
                 for (var entry : valueRecord.entrySet()) {
                     var value = entry.getValue();
